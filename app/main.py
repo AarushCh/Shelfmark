@@ -1,7 +1,7 @@
 """HTTP layer: a JSON API plus the three static apps. The rules live in library.py and models.py."""
 import os
 from contextlib import asynccontextmanager
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -140,32 +140,20 @@ def health(db: DB):
     return {"ok": True}
 
 
-@app.get("/api/stats", summary="Catalogue figures for the landing page and subject browser")
+@app.get("/api/stats", summary="Catalogue figures, the subject list and the most borrowed titles")
 def stats(db: DB):
     loans_per_book = (select(BookItem.book_id, func.count(Loan.id).label("n"))
                       .join(Loan, Loan.barcode == BookItem.barcode).group_by(BookItem.book_id).subquery())
-    popularity = func.coalesce(loans_per_book.c.n, 0)
-    ranked = (select(Book, popularity).outerjoin(loans_per_book, loans_per_book.c.book_id == Book.id)
-              .order_by(popularity.desc(), Book.title).options(selectinload(Book.items), selectinload(Book.reservations)))
-    rows = db.execute(ranked).all()
-    books = [book for book, _ in rows]
-    subjects = {}
-    for book, loans in rows:
-        s = subjects.setdefault(book.subject, {"name": book.subject, "titles": 0, "available": 0, "loans": 0, "top": []})
-        s["titles"] += 1
-        s["available"] += book.count(ItemStatus.AVAILABLE)
-        s["loans"] += loans
-        if len(s["top"]) < 6:
-            s["top"].append(brief(book))
+    popular = db.scalars(select(Book).outerjoin(loans_per_book, loans_per_book.c.book_id == Book.id)
+                         .order_by(func.coalesce(loans_per_book.c.n, 0).desc(), Book.title).limit(6)
+                         .options(selectinload(Book.items), selectinload(Book.reservations))).all()
+    subjects = db.execute(select(Book.subject, func.count(Book.id)).group_by(Book.subject).order_by(Book.subject)).all()
     return {
-        "titles": len(books),
-        "copies": number(db, select(func.count()).where(BookItem.status != ItemStatus.LOST)),
+        "titles": number(db, select(func.count(Book.id))),
         "available": number(db, select(func.count()).where(BookItem.status == ItemStatus.AVAILABLE)),
         "members": number(db, select(func.count(Member.id)).where(Member.active)),
-        "on_loan": number(db, select(func.count(Loan.id)).where(Loan.returned_on.is_(None))),
-        "loans": number(db, select(func.count(Loan.id))),
-        "subjects": sorted(subjects.values(), key=lambda s: s["name"]),
-        "popular": [book_json(b) for b in books[:6]],
+        "subjects": [{"name": name, "titles": titles} for name, titles in subjects],
+        "popular": [book_json(b) for b in popular],
     }
 
 
@@ -329,46 +317,22 @@ class MemberChanges(BaseModel):
     active: bool
 
 
-@app.get("/api/desk/overview", summary="Dashboard: KPIs, 14-day circulation, overdue list, holds, activity")
+@app.get("/api/desk/overview", summary="The counter: loans out, what's overdue, holds to hand over, recent activity")
 def overview(_: CurrentLibrarian, db: DB):
     lib = Library(db)
     lib.sweep()
     db.commit()
     today = lib.today
-    items = dict(db.execute(select(BookItem.status, func.count()).group_by(BookItem.status)).all())
-    open_loans = Loan.returned_on.is_(None)
-    since = today - timedelta(days=13)
-    issued = dict(db.execute(select(Loan.issued_on, func.count()).where(Loan.issued_on >= since)
-                             .group_by(Loan.issued_on)).all())
-    returned = dict(db.execute(select(Loan.returned_on, func.count()).where(Loan.returned_on >= since)
-                               .group_by(Loan.returned_on)).all())
-    month = today - timedelta(days=30)
-    back_month = number(db, select(func.count(Loan.id)).where(Loan.returned_on >= month))
-    on_time = number(db, select(func.count(Loan.id)).where(Loan.returned_on >= month, Loan.returned_on <= Loan.due_on))
-    by_subject = db.execute(select(Book.subject, func.count(Loan.id)).join(BookItem, BookItem.book_id == Book.id)
-                            .join(Loan, Loan.barcode == BookItem.barcode).where(open_loans)
-                            .group_by(Book.subject).order_by(func.count(Loan.id).desc())).all()
-    overdue = db.scalars(select(Loan).where(open_loans, Loan.due_on < today).order_by(Loan.due_on).limit(8)).all()
+    late = (Loan.returned_on.is_(None), Loan.due_on < today)
+    overdue = db.scalars(select(Loan).where(*late).order_by(Loan.due_on).limit(5)).all()
     holds = db.scalars(select(Reservation).where(Reservation.status == ReservationStatus.READY)
                        .order_by(Reservation.hold_until)).all()
-    activity = db.scalars(select(Activity).order_by(Activity.at.desc(), Activity.id.desc()).limit(16)).all()
-    copies = sum(n for status, n in items.items() if status != ItemStatus.LOST)
+    activity = db.scalars(select(Activity).order_by(Activity.at.desc(), Activity.id.desc()).limit(10)).all()
     return {
         "today": today,
-        "titles": number(db, select(func.count(Book.id))),
-        "copies": copies,
-        "items": items,
-        "members": number(db, select(func.count(Member.id)).where(Member.active)),
-        "new_members": number(db, select(func.count(Member.id)).where(Member.joined_on >= month)),
-        "on_loan": number(db, select(func.count(Loan.id)).where(open_loans)),
-        "overdue_count": number(db, select(func.count(Loan.id)).where(open_loans, Loan.due_on < today)),
-        "waiting": number(db, select(func.count(Reservation.id)).where(Reservation.status == ReservationStatus.WAITING)),
+        "on_loan": number(db, select(func.count(Loan.id)).where(Loan.returned_on.is_(None))),
+        "overdue_count": number(db, select(func.count(Loan.id)).where(*late)),
         "fines_due": number(db, select(func.sum(Fine.amount)).where(Fine.paid_on.is_(None))),
-        "fines_collected": number(db, select(func.sum(Fine.amount)).where(Fine.paid_on >= month)),
-        "on_time_rate": round(100 * on_time / back_month) if back_month else 100,
-        "series": [{"day": d, "issued": issued.get(d, 0), "returned": returned.get(d, 0)}
-                   for d in (since + timedelta(days=i) for i in range(14))],
-        "by_subject": [{"subject": s, "loans": n} for s, n in by_subject],
         "overdue": [loan_json(loan, today) for loan in overdue],
         "holds": [reservation_json(r) for r in holds],
         "activity": [{"at": a.at, "kind": a.kind, "message": a.message} for a in activity],
