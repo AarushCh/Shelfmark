@@ -5,47 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Shelfmark · Library</title>
   <meta name="description" content="Shelfmark is a library management system: search the catalogue, find the rack, borrow, reserve and renew." />
-  <meta name="theme-color" content="#f7efe6" />
+  <meta name="theme-color" content="#f4efe7" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+  <link rel="stylesheet" href="theme.css" />
   <link rel="stylesheet" href="landing.css" />
 </head>
-<body>
+<body class="landing">
   <a class="skip" href="#main">Skip to content</a>
-  <div class="grain" aria-hidden="true"></div>
 
-  <!-- ============ HERO: glass bubble ============ -->
+  <header class="topbar">
+    <a class="logo" href="/"><span class="logo__mark">✦</span>SHELFMARK</a>
+    <nav class="topnav" aria-label="Main">
+      <a href="/catalog">Catalog</a>
+      <a href="#popular">Popular</a>
+      <a href="#subjects">Subjects</a>
+      <a href="/desk">Desk</a>
+    </nav>
+    <div class="who" id="who"><a class="btn btn--sm" href="/catalog#account">Sign in</a></div>
+  </header>
+
+  <!-- HERO: glass bubble -->
   <div class="hero">
-    <header class="header">
-      <a href="/" class="logo"><span class="logo__symbol">✦</span><span>SHELFMARK</span></a>
-      <nav class="nav" aria-label="Main">
-        <a href="/catalog">CATALOG</a>
-        <a href="#stacks">COLLECTION</a>
-        <a href="#featured">POPULAR</a>
-        <a href="/desk">DESK</a>
-      </nav>
-      <a class="menu" id="account-link" href="/catalog#account"><span class="menu__dot"></span><span>SIGN IN</span></a>
-    </header>
-
     <main class="hero__body" id="main">
       <section class="content">
-        <div class="eyebrow"><span></span>THE CAMPUS LIBRARY, CATALOGUED</div>
-        <h1>EVERY BOOK<br />IN ITS PLACE</h1>
+        <p class="eyebrow">The campus library, catalogued</p>
+        <h1><span>Every book</span><span>in its place</span></h1>
         <p class="intro" id="intro">Search the catalogue, see the exact rack a copy sits on, reserve what's out and hear the moment it's back.</p>
         <div class="actions">
-          <a href="/catalog" class="btn btn--primary">BROWSE CATALOG <span>↗</span></a>
-          <a href="/desk" class="btn btn--secondary">LIBRARIAN DESK <span>→</span></a>
+          <a href="/catalog" class="btn btn--lg">Browse the catalog <i class="ph ph-arrow-up-right"></i></a>
+          <a href="/desk" class="btn btn--lg btn--ghost">Librarian desk</a>
         </div>
-        <div class="meta">
-          <div class="meta__item"><small>OPEN TODAY</small><strong>09:00 — 21:00</strong></div>
-          <div class="meta__item"><small>ON THE SHELVES</small><strong id="meta-available">— COPIES</strong></div>
-          <div class="meta__item"><small>SCROLL TO EXPLORE</small><span class="scroll-dot"><i></i></span></div>
-        </div>
+        <dl class="figures">
+          <div><dt>Titles</dt><dd data-stat="titles">—</dd></div>
+          <div><dt>On the shelf now</dt><dd data-stat="available">—</dd></div>
+          <div><dt>Members</dt><dd data-stat="members">—</dd></div>
+        </dl>
       </section>
 
-      <section class="visual" id="visual" aria-hidden="true">
+      <section class="visual" aria-hidden="true">
         <div class="visual-lighting">
           <span class="visual-glow visual-glow--ambient"></span>
           <span class="visual-glow visual-glow--core"></span>
@@ -225,61 +226,64 @@
     </main>
   </div>
 
-  <!-- ============ STACKS: pill platforms ============ -->
-  <section class="poster" id="stacks" aria-labelledby="stacks-title">
-    <div class="top-divider"><span class="line"></span><span class="dot"></span><span class="line"></span></div>
-    <svg class="arcs" viewBox="0 0 1600 1600" id="arcs" aria-hidden="true">
-      <circle class="arc" cx="0" cy="800" r="780" />
-      <circle class="arc" cx="0" cy="800" r="900" />
-      <circle class="arc" cx="0" cy="800" r="1020" />
-      <circle class="arc" cx="0" cy="800" r="1140" />
-      <circle class="arc" cx="0" cy="800" r="1260" />
-    </svg>
-    <h2 class="sr-only" id="stacks-title">The busiest shelves</h2>
-    <div class="pills" id="pills">
-      <div class="pill"><div class="dark-tile label-tile"><span class="lbl">…</span></div><div class="dark-tile tools-tile"></div></div>
-      <div class="pill"><div class="dark-tile label-tile"><span class="lbl">…</span></div><div class="dark-tile tools-tile"></div></div>
-      <div class="pill"><div class="dark-tile label-tile"><span class="lbl">…</span></div><div class="dark-tile tools-tile"></div></div>
-    </div>
-    <div class="reinvent" id="reinvent">R&nbsp;E&nbsp;A&nbsp;D<span class="gap"></span>W&nbsp;I&nbsp;D&nbsp;E&nbsp;L&nbsp;Y</div>
-  </section>
-
-  <!-- ============ FEATURED: most borrowed ============ -->
-  <section class="featured" id="featured">
-    <div class="featured-head">
+  <!-- POPULAR -->
+  <section class="section" id="popular" aria-labelledby="popular-h">
+    <div class="section__head reveal">
       <div>
-        <div class="kicker" id="featured-kicker">THE CATALOGUE · ONE CARD</div>
-        <h2>The most <em>borrowed</em><br />books this term.</h2>
+        <p class="eyebrow">Most borrowed this term</p>
+        <h2 class="headline" id="popular-h">What everyone's <em>reading</em>.</h2>
       </div>
-      <p>Live from the circulation desk: the titles members keep coming back for. Open one to see which rack it lives on.</p>
+      <a class="btn btn--ghost" href="/catalog">The whole catalog <i class="ph ph-arrow-right"></i></a>
     </div>
-    <div class="featured-grid" id="featured-grid"></div>
-  </section>
-
-  <!-- ============ CTA ============ -->
-  <section class="cta-section">
-    <div class="cta-inner">
-      <div class="cta-tag">S&nbsp;H&nbsp;E&nbsp;L&nbsp;F&nbsp;M&nbsp;A&nbsp;R&nbsp;K</div>
-      <h2>Stop browsing.<br /><em>Start borrowing.</em></h2>
-      <div class="cta-stats">
-        <div class="cta-stat"><div class="num" data-key="titles"><span>0</span></div><div class="lbl">Titles catalogued</div></div>
-        <div class="cta-stat"><div class="num" data-key="copies"><span>0</span></div><div class="lbl">Copies on the racks</div></div>
-        <div class="cta-stat"><div class="num" data-count="0"><span>0</span><small>fees</small></div><div class="lbl">Late fees, if you're on time</div></div>
-      </div>
-      <div class="cta-links">
-        <a href="/catalog">Open the catalog ↗</a>
-        <a href="/docs">API reference ↗</a>
-      </div>
+    <div class="books books--row" id="popular-books">
+      <span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span>
     </div>
   </section>
 
-  <footer class="site-foot">
-    <span>Shelfmark · library management system</span>
-    <span>Book data: Open Library · Photo: Unsplash</span>
+  <!-- SUBJECTS: dark tiles -->
+  <section class="section" id="subjects" aria-labelledby="subjects-h">
+    <div class="section__head reveal">
+      <div>
+        <p class="eyebrow" id="subjects-kicker">Subjects</p>
+        <h2 class="headline" id="subjects-h">Pick a <em>shelf</em>.</h2>
+      </div>
+    </div>
+    <div class="shelves" id="shelves"></div>
+  </section>
+
+  <!-- HOW IT WORKS: dark tiles on a pale platform -->
+  <section class="section" id="how" aria-labelledby="how-h">
+    <div class="section__head reveal">
+      <div>
+        <p class="eyebrow">How it works</p>
+        <h2 class="headline" id="how-h">Borrowing, <em>simply</em>.</h2>
+      </div>
+    </div>
+    <div class="platform reveal">
+      <article class="tile step">
+        <span class="step__n">01</span>
+        <h3>Find it</h3>
+        <p>Search by title, author, ISBN, subject or year. Every copy shows the rack it sits on.</p>
+      </article>
+      <article class="tile step">
+        <span class="step__n">02</span>
+        <h3>Borrow it</h3>
+        <p>The desk scans your card and the book. Students take 5 books for 10 days, faculty 10 for 30.</p>
+      </article>
+      <article class="tile step">
+        <span class="step__n">03</span>
+        <h3>Reserve or renew</h3>
+        <p>Queue for a title that's out and we hold the copy for 3 days. Late returns cost ₹5 a day, ₹2 for faculty.</p>
+      </article>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>✦ Shelfmark · library management system</span>
+    <nav aria-label="Footer"><a href="/catalog">Catalog</a><a href="/desk">Desk</a><a href="/docs">API</a></nav>
+    <span>Books: Open Library · Photo: Unsplash</span>
   </footer>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="shared.js"></script>
   <script src="landing.js"></script>
 </body>

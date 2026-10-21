@@ -3,241 +3,114 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Shelfmark · Catalog</title>
+  <title>Catalog · Shelfmark</title>
   <meta name="description" content="Search the Shelfmark catalogue, reserve titles that are out, renew loans and track fines." />
+  <meta name="theme-color" content="#f4efe7" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Poppins:ital,wght@0,200;0,400;0,600;0,800;0,900;1,800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
-  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css" />
-  <link rel="stylesheet" href="catalog.css" />
+  <link rel="stylesheet" href="theme.css" />
 </head>
 <body>
-<div id="hyp-color" class="defaultPalette">
-<div class="hyp">
+  <a class="skip" href="#main">Skip to content</a>
 
-  <!-- SIDEBAR -->
-  <aside class="hyp-menu" aria-label="Shortcuts">
-    <button type="button" class="hyp-menu-click" id="menu-toggle" aria-expanded="false" aria-controls="main-menu">
-      <span class="hyp-menu-click1"><span class="hyp-menu-click2"><span><i class="ph-duotone ph-hand-pointing"></i></span></span></span>
-      <span class="hyp-menu-click3">menu</span>
-    </button>
-    <div class="hyp-menu-divide"><div></div></div>
-    <nav class="hyp-menu-links">
-      <a href="#hypTop" data-tip="top"><i class="ph ph-arrow-circle-up"></i><span class="sr-only">Back to top</span></a>
-      <a href="/" data-tip="home"><i class="ph ph-house"></i><span class="sr-only">Home</span></a>
-      <a href="#notices" class="notif" id="notif-link" data-tip="notices"><div hidden>0</div><i class="ph ph-bell"></i><span class="sr-only">Notifications</span></a>
-      <a href="#shelf" class="notif" id="loans-link" data-tip="my shelf"><div hidden>0</div><i class="ph ph-paper-plane-tilt"></i><span class="sr-only">My loans</span></a>
-      <a href="#account" id="power-link" data-tip="sign in"><i class="ph ph-power"></i><span class="sr-only">Sign in or out</span></a>
-      <a href="#account" id="card-link" data-tip="my card"><i class="ph ph-user-plus"></i><span class="sr-only">Membership card</span></a>
-      <a href="#hypBot" data-tip="bottom"><i class="ph ph-arrow-circle-down"></i><span class="sr-only">To the bottom</span></a>
+  <header class="topbar">
+    <a class="logo" href="/"><span class="logo__mark">✦</span>SHELFMARK</a>
+    <nav class="topnav" aria-label="Main">
+      <a href="/catalog" aria-current="page">Catalog</a>
+      <a href="/desk">Desk</a>
+      <a href="/docs">API</a>
     </nav>
-    <div class="hyp-menu-divide"><div></div></div>
-    <a href="/" class="hyp-menu-topr"><div class="hyp-banner-topr2">SHELF<b>MARK</b></div></a>
-  </aside>
-  <div class="hyp-slant" aria-hidden="true"></div>
+    <div class="who" id="who"></div>
+  </header>
 
-  <!-- MAIN MENU: account + reading room settings -->
-  <div class="hyp-main-menu" id="main-menu" role="dialog" aria-modal="true" aria-label="Menu">
-    <div class="menu-grid">
-      <section class="menu-col" id="account-panel" aria-labelledby="account-h">
-        <h2 class="menu-h" id="account-h">your <b>card</b></h2>
-        <div id="account-body"></div>
-      </section>
-      <section class="menu-col" aria-labelledby="room-h">
-        <h2 class="menu-h" id="room-h">reading <b>room</b></h2>
-        <label class="menu-label" for="hyp-mode">light → sepia → dark</label>
-        <input type="range" id="hyp-mode" min="1" max="3" value="1" />
-        <div class="menu-row">
-          <span class="menu-label">low contrast</span>
-          <button type="button" class="hyp-chip" id="contrastmode" aria-pressed="false">off</button>
-        </div>
-        <div class="menu-row">
-          <span class="menu-label">font size</span>
-          <button type="button" class="hyp-chip" id="font-down" aria-label="Smaller text">−</button>
-          <button type="button" class="hyp-chip" id="font-reset" aria-label="Reset text size">/</button>
-          <button type="button" class="hyp-chip" id="font-up" aria-label="Larger text">+</button>
-        </div>
-        <label class="menu-label" for="palette">accent palette</label>
-        <select id="palette" class="hyp-select">
-          <option value="defaultPalette">default</option>
-          <optgroup label="basic">
-            <option value="prettyPink">pretty pink</option><option value="cherryRed">cherry red</option><option value="tangyOrange">tangy orange</option><option value="glitterGold">glitter gold</option><option value="leafyGreen">leafy green</option><option value="seafoamTeal">seafoam teal</option><option value="berryBlue">berry blue</option><option value="perfectPurple">perfect purple</option>
-          </optgroup>
-          <optgroup label="premium">
-            <option value="bubblegumCrisis">bubblegum crisis</option><option value="pinkLemonade">pink lemonade</option><option value="hatsuneMiku">hatsune miku</option><option value="unicornDust">unicorn dust</option><option value="appleOrchard">apple orchard</option><option value="retroGamer">retro gamer</option><option value="summerSunshine">summer sunshine</option><option value="citrusTwist">citrus twist</option><option value="goldfishPond">goldfish pond</option><option value="lightningBolt">lightning bolt</option><option value="mayFlowers">may flowers</option><option value="melonSlice">melon slice</option><option value="blindJustice">blind justice</option><option value="greenerGrass">greener grass</option><option value="circusTent">circus tent</option><option value="popsicleStick">popsicle stick</option><option value="blueberryLemonade">blueberry lemonade</option><option value="gamecubeController">gamecube controller</option><option value="mulberryBush">mulberry bush</option><option value="jokerBaby">joker baby</option><option value="dixieCup">dixie cup</option>
-          </optgroup>
-          <optgroup label="special">
-            <option value="preciousMetals">precious metals</option><option value="cyberPunk">cyberpunk</option><option value="cyberPink">cyberpink</option><option value="sourCandies">sour candies</option><option value="coffeeCake">coffee cake</option><option value="neaPolitan">neapolitan</option><option value="pikaPika">pika pika</option><option value="camoGear">camo gear</option><option value="peppermintPatty">peppermint patty</option>
-          </optgroup>
-          <optgroup label="monochrome">
-            <option value="pastelGoth monochrome">pastel goth</option><option value="vampireBlood monochrome">vampire blood</option><option value="jackoLantern monochrome">jack-o-lantern</option><option value="bumbleBee monochrome">bumblebee</option><option value="getSlimed monochrome">get slimed</option><option value="winterNight monochrome">winter night</option><option value="brutalistBlue monochrome">brutalist blue</option><option value="witchingHour monochrome">witching hour</option><option value="doberMann monochrome">dobermann</option><option value="newsPrint monochrome">newsprint</option><option value="paintBlack monochrome">paint it black</option>
-          </optgroup>
-          <optgroup label="holiday">
-            <option value="thanksGiving">thanksgiving</option><option value="halloWeen">halloween</option><option value="stPatrick">st. patrick's</option><option value="easTer">easter</option><option value="newYear">new year</option><option value="kwanZaa">kwanzaa</option><option value="valentinesDay">valentine's day</option><option value="hanuKkah">hanukkah</option>
-          </optgroup>
-        </select>
-        <p class="menu-note">Preferences stay on this device.</p>
-      </section>
+  <main class="page" id="main">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow" id="kicker">The catalogue</p>
+        <h1 class="headline" id="heading">Find your next <em>book</em>.</h1>
+      </div>
+      <nav class="tabs" aria-label="Catalog sections">
+        <a class="tab" href="#browse" aria-current="page"><i class="ph ph-magnifying-glass"></i>Browse</a>
+        <a class="tab" href="#shelf"><i class="ph ph-books"></i>My shelf<span class="badge" id="shelf-badge" hidden></span></a>
+      </nav>
     </div>
-    <button type="button" class="menu-close" id="menu-close">get me outta here <i class="ph ph-x"></i></button>
-  </div>
 
-  <div class="hyp-body" id="scroller">
-    <div id="hypTop"></div>
-    <main class="hyp-wrapper">
-
-      <!-- BANNER -->
-      <div class="hyp-ban">
-        <div class="hyp-banner">
-          <div class="hyp-banner-top"><div class="hyp-banner-top1">
-            <div class="hyp-banner-sub"><i></i><b id="sub-titles">— titles</b><span id="sub-subjects">across the stacks</span></div>
-            <div class="hyp-banner-sub"><i></i><b id="sub-members">— members</b>borrowing this term</div>
-            <div class="hyp-banner-sub"><i></i><b>open 09 — 21</b>monday to saturday</div>
-            <div class="hyp-banner-topr">
-              <div class="hyp-banner-icon"><div class="hyp-banner-icon1"><div id="banner-cover"></div></div></div>
-              <div class="hyp-banner-topr2">SHELF<b>MARK</b></div>
-            </div>
-          </div></div>
-          <div class="hyp-banner-left">
-            <h1 class="hyp-banner-name">SHELF<b>MARK</b></h1>
-            <div class="hyp-banner-blurb">
-              <div>Welcome to <b>Shelfmark</b>, the campus library's <i>member catalogue</i>. Search every shelf, see the exact rack a copy lives on, reserve titles that are out and renew what you've got. Students borrow up to <b>5 books</b> for <i>10 days</i>; faculty up to <b>10 books</b> for <i>30 days</i>.</div>
-            </div>
-            <a href="#account" class="hyp-banner-event" id="event">
-              <div class="hyp-banner-event-icon"><i class="ph-duotone ph-bookmark-simple"></i></div>
-              <div class="hyp-banner-event-left" id="event-text">member<br />sign in<div>your card awaits</div></div>
-              <div class="hyp-banner-event-right"><i class="ph-duotone ph-cursor-click"></i></div>
-            </a>
-            <div class="hyp-banner-event2"></div>
-          </div>
-          <div class="hyp-banner-divide"><div></div></div>
-          <div class="hyp-banner-img" aria-hidden="true">
-            <div class="hyp-banner-render-text"><b>shelf</b><b>mark</b></div>
-            <div class="hyp-banner-render">
-              <svg class="book-stack" viewBox="0 0 560 700">
-                <g transform="rotate(-5 280 200)">
-                  <rect class="bk a1" x="96" y="40" width="74" height="300" rx="9" />
-                  <rect class="band" x="96" y="78" width="74" height="9" /><rect class="band" x="96" y="290" width="74" height="9" />
-                  <rect class="bk ink" x="178" y="74" width="60" height="266" rx="9" />
-                  <rect class="band light" x="190" y="104" width="36" height="70" rx="4" />
-                  <rect class="bk a2" x="246" y="52" width="68" height="288" rx="9" />
-                  <rect class="band" x="246" y="92" width="68" height="7" /><rect class="band" x="246" y="104" width="68" height="7" />
-                  <rect class="bk pale" x="322" y="96" width="52" height="244" rx="9" />
-                  <rect class="bk a1" x="380" y="120" width="44" height="220" rx="9" transform="rotate(14 402 340)" />
-                </g>
-                <rect class="bk ink" x="60" y="352" width="440" height="62" rx="11" /><rect class="pages" x="462" y="360" width="30" height="46" rx="4" />
-                <rect class="bk a1" x="92" y="420" width="400" height="56" rx="11" /><rect class="pages" x="456" y="428" width="28" height="40" rx="4" />
-                <rect class="bk pale" x="42" y="482" width="458" height="68" rx="11" /><rect class="band" x="92" y="482" width="12" height="68" /><rect class="pages" x="462" y="490" width="30" height="52" rx="4" />
-                <rect class="bk a2" x="78" y="556" width="420" height="58" rx="11" /><rect class="pages" x="460" y="564" width="30" height="42" rx="4" />
-                <rect class="bk ink" x="48" y="620" width="462" height="72" rx="11" /><rect class="band light" x="98" y="638" width="150" height="10" rx="5" /><rect class="pages" x="472" y="628" width="30" height="56" rx="4" />
-              </svg>
-            </div>
-            <div class="hyp-banner-img2"><div></div></div>
-            <div class="hyp-banner-img3"></div>
+    <section class="view" id="view-browse">
+      <div id="strip"></div>
+      <form class="search" id="search-form" role="search">
+        <label class="searchbox">
+          <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+          <input type="search" name="q" placeholder="Search by title, author or ISBN" autocomplete="off" aria-label="Search the catalogue" />
+        </label>
+        <input type="hidden" name="subject" />
+        <div class="chips" id="subjects" role="group" aria-label="Subject">
+          <button type="button" class="chip" data-subject="" aria-pressed="true">All subjects</button>
+        </div>
+        <div class="search__row">
+          <p class="search__count" id="count" aria-live="polite">Searching…</p>
+          <div class="search__filters">
+            <span class="years">Published
+              <input class="input input--sm" type="number" name="year_from" placeholder="from" inputmode="numeric" aria-label="Published from year" />–<input class="input input--sm" type="number" name="year_to" placeholder="to" inputmode="numeric" aria-label="Published up to year" />
+            </span>
+            <select class="input input--sm" name="sort" aria-label="Sort by">
+              <option value="title">A–Z</option>
+              <option value="-year">Newest</option>
+              <option value="year">Oldest</option>
+              <option value="new">Recently added</option>
+            </select>
+            <label class="check"><input type="checkbox" name="available" value="true" /> On the shelf now</label>
           </div>
         </div>
+      </form>
+      <div class="books" id="results">
+        <span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span>
+        <span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span><span class="ghost"></span>
       </div>
+      <div class="more"><button type="button" class="btn btn--ghost" id="more" hidden>Show more</button></div>
+    </section>
 
-      <!-- HANDBOOK BAR -->
-      <div class="hyp-cat">
-        <a href="#search" class="hyp-cat1-name"><div>shelf<b>mark</b></div>handbook</a>
-        <div class="hyp-cat1-links">
-          <a href="#" data-handbook="start"><div>start here</div><i class="ph ph-hand-waving"></i></a>
-          <a href="#" data-handbook="rules"><div>the rules</div><i class="ph ph-ruler"></i></a>
-          <a href="#" id="personalize"><div>personalize</div><i class="ph ph-palette"></i></a>
-          <a href="/docs"><div>api docs</div><i class="ph ph-code"></i></a>
-          <a href="#" data-handbook="credits"><div>credits</div><i class="ph ph-smiley"></i></a>
-        </div>
-        <div class="hyp-cat1-divide"></div>
+    <section class="view" id="view-shelf" hidden></section>
+  </main>
+
+  <dialog class="sheet" id="book-sheet" aria-labelledby="book-title">
+    <button type="button" class="sheet__x" data-close aria-label="Close"><i class="ph ph-x"></i></button>
+    <div class="sheet__body" id="book-body" tabindex="-1" autofocus></div>
+  </dialog>
+
+  <dialog class="sheet sheet--narrow" id="account" aria-labelledby="account-h">
+    <button type="button" class="sheet__x" data-close aria-label="Close"><i class="ph ph-x"></i></button>
+    <div class="sheet__body">
+      <p class="eyebrow">Members</p>
+      <h2 class="sheet__h" id="account-h">Your library <em>card</em></h2>
+      <div class="tabs tabs--sm sheet__tabs" role="group" aria-label="Sign in or join">
+        <button type="button" class="tab" data-pane="signin" aria-pressed="true">Sign in</button>
+        <button type="button" class="tab" data-pane="join" aria-pressed="false">Join</button>
       </div>
-      <div class="hyp-cat2"><div class="hyp-cat2-left"><div></div></div><span></span><div class="hyp-cat2-right"><div></div></div></div>
+      <form class="form" id="signin-form">
+        <label class="field">Email<input class="input" name="email" type="email" autocomplete="username" required /></label>
+        <label class="field">Password<input class="input" name="password" type="password" autocomplete="current-password" required /></label>
+        <p class="form-error" role="alert"></p>
+        <button class="btn btn--lg">Sign in</button>
+      </form>
+      <form class="form" id="join-form" hidden>
+        <label class="field">Full name<input class="input" name="name" autocomplete="name" required minlength="2" maxlength="120" /></label>
+        <label class="field">Email<input class="input" name="email" type="email" autocomplete="email" required maxlength="160" /></label>
+        <label class="field">Password<input class="input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" placeholder="8 characters or more" /></label>
+        <p class="form-error" role="alert"></p>
+        <button class="btn btn--lg">Get my card</button>
+      </form>
+      <p class="demo">Try a demo card:
+        <button type="button" class="chip" data-demo="student@shelfmark.test">Student</button>
+        <button type="button" class="chip" data-demo="faculty@shelfmark.test">Faculty</button>
+      </p>
+    </div>
+  </dialog>
 
-      <!-- SEARCH -->
-      <section class="hyp-search" id="search" aria-labelledby="search-h">
-        <h2 class="hyp-section-h" id="search-h">search the <b>stacks</b></h2>
-        <form class="search-form" id="search-form" role="search">
-          <input type="search" id="q" name="q" placeholder="title, author or ISBN…" autocomplete="off" aria-label="Search the catalogue" />
-          <div class="search-by" role="radiogroup" aria-label="Search by">
-            <label><input type="radio" name="by" value="all" checked /><span>everything</span></label>
-            <label><input type="radio" name="by" value="title" /><span>title</span></label>
-            <label><input type="radio" name="by" value="author" /><span>author</span></label>
-            <label><input type="radio" name="by" value="isbn" /><span>isbn</span></label>
-          </div>
-          <div class="search-filters">
-            <label>subject <select name="subject" id="subject-filter" class="hyp-select"><option value="">all subjects</option></select></label>
-            <label>published <input type="number" name="year_from" placeholder="from" inputmode="numeric" /> — <input type="number" name="year_to" placeholder="to" inputmode="numeric" /></label>
-            <label>sort <select name="sort" class="hyp-select"><option value="title">a — z</option><option value="-year">newest</option><option value="year">oldest</option><option value="new">recently added</option></select></label>
-            <label class="hyp-check"><input type="checkbox" name="available" /> on the shelf now</label>
-          </div>
-        </form>
-        <p class="search-count" id="search-count" aria-live="polite"></p>
-        <div class="book-grid" id="results"></div>
-        <button type="button" class="hyp-btn" id="more" hidden>more results</button>
-      </section>
-
-      <div class="hyp-hor-divide"><div></div></div>
-
-      <!-- MY SHELF -->
-      <section class="hyp-shelf" id="shelf" aria-labelledby="shelf-h">
-        <h2 class="hyp-section-h" id="shelf-h">my <b>shelf</b></h2>
-        <div id="shelf-body"></div>
-      </section>
-
-      <!-- SUBJECTS -->
-      <div class="hyp-genres">
-        <div class="hyp-genres-left">
-          <nav class="hyp-genres-anchor" id="anchors" aria-label="Subjects">
-            <a href="#search">search</a>
-            <a href="#shelf">my shelf</a>
-          </nav>
-        </div>
-        <div class="hyp-genres-right" id="genres"></div>
-      </div>
-
-    </main>
-    <div id="hypBot"></div>
-  </div>
-</div>
-
-<!-- book detail -->
-<dialog class="hyp-dialog" id="book-dialog" aria-labelledby="book-title">
-  <button type="button" class="dialog-x" data-close aria-label="Close"><i class="ph ph-x"></i></button>
-  <div id="book-body"></div>
-</dialog>
-
-<!-- handbook -->
-<dialog class="hyp-dialog hyp-dialog--text" id="handbook" aria-labelledby="handbook-h">
-  <button type="button" class="dialog-x" data-close aria-label="Close"><i class="ph ph-x"></i></button>
-  <h2 class="dialog-h" id="handbook-h">shelf<b>mark</b> handbook</h2>
-  <section id="hb-start">
-    <h3>start here</h3>
-    <p>Find a book with <b>search</b> or browse a subject below. Each title lists every copy, the <i>rack</i> it lives on and whether it's on the shelf. Take an available copy to the desk to borrow it: the librarian scans your card and the book's barcode.</p>
-    <p>If every copy is out, press <b>reserve</b>. You join a first-come, first-served queue and get a notice the moment a copy comes back. It's then held at the desk for <b>3 days</b>.</p>
-  </section>
-  <section id="hb-rules">
-    <h3>the rules</h3>
-    <table class="hb-table">
-      <thead><tr><th>membership</th><th>books at once</th><th>loan period</th><th>late fee</th></tr></thead>
-      <tbody>
-        <tr><td>student</td><td>5</td><td>10 days</td><td>₹5 / day</td></tr>
-        <tr><td>faculty</td><td>10</td><td>30 days</td><td>₹2 / day</td></tr>
-      </tbody>
-    </table>
-    <p>You can <b>renew</b> a loan once from <i>my shelf</i>, as long as it isn't overdue and nobody is queued for it. A late return raises a fine of <i>days late × your daily rate</i>, and unpaid fines pause borrowing until they're settled at the desk.</p>
-  </section>
-  <section id="hb-credits">
-    <h3>credits</h3>
-    <p>Interface built on the CodePen designs <b>HYPER LINK</b> (Pharaoh Leap), <b>Marquee Glass Bubble</b> (Fernando Cohen), <b>3D Data cards menu</b> (Deckard) and the <b>Bento element lab</b> (Mohammad Abu Sakour). Book data and covers come from <i>Open Library</i>, photography from <i>Unsplash</i> and icons from <i>Phosphor</i>.</p>
-  </section>
-</dialog>
-
-<div class="hyp-toasts" id="toasts" aria-live="polite"></div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
-<script src="shared.js"></script>
-<script src="catalog.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+  <script src="shared.js"></script>
+  <script src="catalog.js"></script>
 </body>
 </html>

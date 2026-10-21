@@ -3,199 +3,173 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Shelfmark · Desk</title>
-  <meta name="description" content="Shelfmark circulation desk: issue and return books, manage the catalogue, members, reservations and fines." />
-  <meta name="theme-color" content="#07080f" />
-  <meta name="color-scheme" content="dark" />
+  <title>Desk · Shelfmark</title>
+  <meta name="description" content="Shelfmark circulation desk: issue and return books, manage loans, reservations, fines, members and the catalogue." />
+  <meta name="theme-color" content="#f4efe7" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
-  <link rel="stylesheet" href="desk.css" />
+  <link rel="stylesheet" href="theme.css" />
 </head>
-<body class="lab">
+<body>
   <a class="skip" href="#main">Skip to content</a>
 
-  <div class="lab-layout">
-    <aside class="lab-side">
-      <a class="desk-brand" href="/"><span class="desk-brand__mark">✦</span> Shelfmark <span class="desk-brand__tag">desk</span></a>
-      <p class="lab-side__kicker">Circulation</p>
-      <nav class="lab-pages-nav" id="nav" aria-label="Desk sections">
-        <a href="#overview"><i class="ph ph-squares-four"></i>Overview</a>
-        <a href="#circulation"><i class="ph ph-barcode"></i>Issue &amp; return</a>
-        <a href="#loans"><i class="ph ph-book-open-text"></i>Loans</a>
-        <a href="#catalogue"><i class="ph ph-books"></i>Catalogue</a>
-        <a href="#members"><i class="ph ph-users-three"></i>Members</a>
-        <a href="#reservations"><i class="ph ph-bookmark-simple"></i>Reservations</a>
-        <a href="#fines"><i class="ph ph-coins"></i>Fines</a>
-      </nav>
-      <p class="lab-side__kicker lab-side__kicker--sub">Elsewhere</p>
-      <nav class="lab-nav" aria-label="Elsewhere">
-        <a href="/catalog" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out"></i>Member catalog</a>
-        <a href="/docs" target="_blank" rel="noopener"><i class="ph ph-code"></i>API reference</a>
-      </nav>
-      <div class="desk-me" id="desk-me"></div>
-    </aside>
+  <header class="topbar">
+    <a class="logo" href="/"><span class="logo__mark">✦</span>SHELFMARK</a>
+    <nav class="topnav" aria-label="Main">
+      <a href="/catalog">Catalog</a>
+      <a href="/desk" aria-current="page">Desk</a>
+      <a href="/docs">API</a>
+    </nav>
+    <div class="who" id="who"></div>
+  </header>
 
-    <header class="lab-head">
-      <div class="lab-head__text">
-        <h1 class="lab-head__title" id="view-title">Overview</h1>
-        <p class="lab-head__sub" id="view-sub">Today at the circulation desk</p>
+  <main class="page" id="main">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow" id="today">Circulation desk</p>
+        <h1 class="headline" id="heading">The <em>desk</em>.</h1>
       </div>
-      <div class="desk-head-actions">
-        <button type="button" class="hot-cmdbar" id="cmd-open" aria-label="Search books, members and barcodes">
-          <i class="ph ph-magnifying-glass"></i><span>Search books, members, barcodes…</span><kbd class="hot-cmdbar__kbd">Ctrl K</kbd>
-        </button>
-        <button type="button" class="lab-lang" id="refresh"><i class="ph ph-arrows-clockwise"></i> Refresh</button>
-      </div>
-    </header>
+      <nav class="tabs" id="tabs" aria-label="Desk sections">
+        <a class="tab" href="#counter"><i class="ph ph-scan"></i>Counter</a>
+        <a class="tab" href="#loans"><i class="ph ph-book-open"></i>Loans</a>
+        <a class="tab" href="#reservations"><i class="ph ph-bookmark-simple"></i>Reservations</a>
+        <a class="tab" href="#fines"><i class="ph ph-coins"></i>Fines</a>
+        <a class="tab" href="#members"><i class="ph ph-users"></i>Members</a>
+        <a class="tab" href="#catalogue"><i class="ph ph-books"></i>Catalogue</a>
+      </nav>
+    </div>
 
-    <main class="lab-main" id="main">
-
-      <!-- OVERVIEW -->
-      <section class="view" id="view-overview" data-title="Overview" data-sub="Today at the circulation desk">
-        <section class="sec">
-          <h2 class="sec__h"><span class="sec__n">01</span>At a glance</h2>
-          <div class="var var--tiles var--data" id="kpis"></div>
-        </section>
-        <div class="desk-grid">
-          <section class="sec panel">
-            <h2 class="sec__h"><span class="sec__n">02</span>Circulation · last 14 days</h2>
-            <div class="hot-chart" id="series"></div>
-            <div class="chart-axis" id="series-axis"></div>
-            <p class="sec__hint"><span class="legend legend--issued"></span>issued <span class="legend legend--returned"></span>returned</p>
-          </section>
-          <section class="sec panel">
-            <h2 class="sec__h"><span class="sec__n">03</span>On loan by subject</h2>
-            <div class="subject-bars" id="by-subject"></div>
-          </section>
-        </div>
-        <div class="desk-grid">
-          <section class="sec">
-            <h2 class="sec__h"><span class="sec__n">04</span>Overdue <span class="chip chip--soft" id="overdue-count">0</span></h2>
-            <div class="row-list" id="overdue"></div>
-          </section>
-          <section class="sec">
-            <h2 class="sec__h"><span class="sec__n">05</span>Holds waiting at the desk</h2>
-            <div class="row-list" id="holds"></div>
-            <h2 class="sec__h desk-gap"><span class="sec__n">06</span>Live activity</h2>
-            <div class="hot-feed" id="feed"></div>
-          </section>
-        </div>
-      </section>
-
-      <!-- ISSUE & RETURN -->
-      <section class="view" id="view-circulation" data-title="Issue &amp; return" data-sub="Scan a library card and a book's barcode" hidden>
-        <div class="desk-grid">
-          <form class="sec panel" id="issue-form" autocomplete="off">
-            <h2 class="sec__h"><span class="sec__n">01</span>Issue a copy</h2>
-            <label class="field">Member card
-              <span class="field__row"><input name="card_no" placeholder="LIB10001" required /><button type="button" class="btn btn--icon-ghost scan" data-scan="card_no" aria-label="Scan card with camera" hidden><i class="ph ph-camera"></i></button></span>
-            </label>
+    <!-- COUNTER -->
+    <section class="view" id="view-counter" data-title="Counter">
+      <div class="kpis" id="kpis"></div>
+      <div class="counter">
+        <form class="card" id="issue-form" autocomplete="off">
+          <div class="card__head">
+            <h2 class="card__title"><i class="ph ph-arrow-circle-up-right"></i>Issue a book</h2>
+            <span class="card__hint">Scan the card, then the book</span>
+          </div>
+          <div class="form">
+            <label class="field">Member card<input class="input input--code" name="card_no" placeholder="LIB10001" required /></label>
             <div class="preview" id="issue-member"></div>
-            <label class="field">Copy barcode
-              <span class="field__row"><input name="barcode" placeholder="SM000001" required /><button type="button" class="btn btn--icon-ghost scan" data-scan="barcode" aria-label="Scan book with camera" hidden><i class="ph ph-camera"></i></button></span>
-            </label>
+            <label class="field">Book barcode<input class="input input--code" name="barcode" placeholder="SM000001" required /></label>
             <div class="preview" id="issue-copy"></div>
-            <button class="btn btn--primary btn--lg">Issue book</button>
-          </form>
-          <form class="sec panel" id="return-form" autocomplete="off">
-            <h2 class="sec__h"><span class="sec__n">02</span>Return a copy</h2>
-            <label class="field">Copy barcode
-              <span class="field__row"><input name="barcode" placeholder="SM000001" required /><button type="button" class="btn btn--icon-ghost scan" data-scan="barcode" aria-label="Scan book with camera" hidden><i class="ph ph-camera"></i></button></span>
-            </label>
+            <button type="submit" class="btn btn--lg">Issue book</button>
+          </div>
+        </form>
+        <form class="card" id="return-form" autocomplete="off">
+          <div class="card__head">
+            <h2 class="card__title"><i class="ph ph-arrow-circle-down-left"></i>Return a book</h2>
+            <span class="card__hint">Late fees are worked out for you</span>
+          </div>
+          <div class="form">
+            <label class="field">Book barcode<input class="input input--code" name="barcode" placeholder="SM000001" required /></label>
             <div class="preview" id="return-copy"></div>
-            <button class="btn btn--secondary btn--lg">Check in</button>
-            <p class="sec__hint">Late returns raise a fine automatically. If someone is queued for the title, the copy goes straight on hold for them.</p>
-          </form>
+            <button type="submit" class="btn btn--lg">Check in</button>
+            <p class="card__hint">If someone is queued for the title, the copy goes on hold for them automatically.</p>
+          </div>
+        </form>
+      </div>
+      <div class="split">
+        <div class="stack">
+          <section class="card">
+            <div class="card__head"><h2 class="card__title"><i class="ph ph-warning-circle"></i>Overdue</h2><a class="card__hint" href="#loans" data-preset="loans:overdue">See all</a></div>
+            <div class="list" id="overdue"></div>
+          </section>
+          <section class="card">
+            <div class="card__head"><h2 class="card__title"><i class="ph ph-hand-arrow-down"></i>Ready for pickup</h2><a class="card__hint" href="#reservations" data-preset="reservations:ready">See all</a></div>
+            <div class="list" id="ready"></div>
+          </section>
         </div>
-        <section class="sec">
-          <h2 class="sec__h"><span class="sec__n">03</span>This session</h2>
-          <div class="row-list" id="session-log"><p class="sec__hint">Transactions you make here appear in this list.</p></div>
+        <section class="card">
+          <div class="card__head"><h2 class="card__title"><i class="ph ph-pulse"></i>Recent activity</h2></div>
+          <div id="feed"></div>
         </section>
-      </section>
+      </div>
+    </section>
 
-      <!-- LOANS -->
-      <section class="view" id="view-loans" data-title="Loans" data-sub="Who has what, and when it's due" hidden>
-        <div class="toolbar">
-          <div class="segment" role="tablist" data-filter="loans">
-            <button type="button" class="segment__btn is-active" data-value="active">Active</button>
-            <button type="button" class="segment__btn" data-value="overdue">Overdue</button>
-            <button type="button" class="segment__btn" data-value="returned">Returned</button>
-          </div>
-          <input type="search" class="toolbar__search" id="loans-q" placeholder="Member, card, title or barcode" />
+    <!-- LOANS -->
+    <section class="view" id="view-loans" data-title="Loans" hidden>
+      <div class="toolbar">
+        <div class="tabs tabs--sm" data-filter="loans" role="group" aria-label="Show">
+          <button type="button" class="tab" data-value="active" aria-pressed="true">On loan</button>
+          <button type="button" class="tab" data-value="overdue" aria-pressed="false">Overdue</button>
+          <button type="button" class="tab" data-value="returned" aria-pressed="false">Returned</button>
         </div>
-        <div class="row-list" id="loans"></div>
-      </section>
+        <label class="searchbox searchbox--sm"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="loans-q" placeholder="Member, card, title or barcode" aria-label="Search loans" /></label>
+      </div>
+      <div class="card card--flush"><div class="list" id="loans-list"></div></div>
+    </section>
 
-      <!-- CATALOGUE -->
-      <section class="view" id="view-catalogue" data-title="Catalogue" data-sub="Titles, copies and racks" hidden>
-        <div class="toolbar">
-          <input type="search" class="toolbar__search" id="cat-q" placeholder="Title, author or ISBN" />
-          <select class="toolbar__select" id="cat-subject"><option value="">All subjects</option></select>
-          <button type="button" class="btn btn--primary" id="add-book"><i class="ph ph-plus"></i> Add title</button>
+    <!-- RESERVATIONS -->
+    <section class="view" id="view-reservations" data-title="Reservations" hidden>
+      <div class="toolbar">
+        <div class="tabs tabs--sm" data-filter="reservations" role="group" aria-label="Show">
+          <button type="button" class="tab" data-value="ready" aria-pressed="true">Ready for pickup</button>
+          <button type="button" class="tab" data-value="waiting" aria-pressed="false">Waiting</button>
+          <button type="button" class="tab" data-value="closed" aria-pressed="false">Closed</button>
         </div>
-        <div class="row-list" id="catalogue"></div>
-        <button type="button" class="btn btn--ghost" id="cat-more" hidden>Load more</button>
-      </section>
+      </div>
+      <div class="card card--flush"><div class="list" id="reservations-list"></div></div>
+    </section>
 
-      <!-- MEMBERS -->
-      <section class="view" id="view-members" data-title="Members" data-sub="Cards, limits and standing" hidden>
-        <div class="toolbar">
-          <input type="search" class="toolbar__search" id="mem-q" placeholder="Name, email or card number" />
-          <button type="button" class="btn btn--primary" id="add-member"><i class="ph ph-user-plus"></i> Register member</button>
+    <!-- FINES -->
+    <section class="view" id="view-fines" data-title="Fines" hidden>
+      <div class="toolbar">
+        <div class="tabs tabs--sm" data-filter="fines" role="group" aria-label="Show">
+          <button type="button" class="tab" data-value="unpaid" aria-pressed="true">Unpaid</button>
+          <button type="button" class="tab" data-value="paid" aria-pressed="false">Paid</button>
         </div>
-        <div class="row-list" id="members"></div>
-      </section>
+        <span class="card__hint">Days late × the member's daily rate</span>
+      </div>
+      <div class="card card--flush"><div class="list" id="fines-list"></div></div>
+    </section>
 
-      <!-- RESERVATIONS -->
-      <section class="view" id="view-reservations" data-title="Reservations" data-sub="Queues and holds, first come first served" hidden>
-        <div class="toolbar">
-          <div class="segment" role="tablist" data-filter="reservations">
-            <button type="button" class="segment__btn is-active" data-value="waiting">Waiting</button>
-            <button type="button" class="segment__btn" data-value="ready">Ready for pickup</button>
-            <button type="button" class="segment__btn" data-value="closed">Closed</button>
-          </div>
-        </div>
-        <div class="row-list" id="reservations"></div>
-      </section>
+    <!-- MEMBERS -->
+    <section class="view" id="view-members" data-title="Members" hidden>
+      <div class="toolbar">
+        <label class="searchbox searchbox--sm"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="members-q" placeholder="Name, email or card number" aria-label="Search members" /></label>
+        <button type="button" class="btn" data-act="add-member"><i class="ph ph-user-plus"></i>Register member</button>
+      </div>
+      <div class="card card--flush"><div class="list" id="members-list"></div></div>
+    </section>
 
-      <!-- FINES -->
-      <section class="view" id="view-fines" data-title="Fines" data-sub="Late returns: days late × member's daily rate" hidden>
-        <div class="toolbar">
-          <div class="segment" role="tablist" data-filter="fines">
-            <button type="button" class="segment__btn is-active" data-value="unpaid">Unpaid</button>
-            <button type="button" class="segment__btn" data-value="paid">Paid</button>
-          </div>
-        </div>
-        <div class="row-list" id="fines"></div>
-      </section>
-    </main>
-  </div>
+    <!-- CATALOGUE -->
+    <section class="view" id="view-catalogue" data-title="Catalogue" hidden>
+      <div class="toolbar">
+        <label class="searchbox searchbox--sm"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="catalogue-q" placeholder="Title, author or ISBN" aria-label="Search the catalogue" /></label>
+        <select class="input input--sm" id="catalogue-subject" aria-label="Subject"><option value="">All subjects</option></select>
+        <button type="button" class="btn" data-act="add-book"><i class="ph ph-plus"></i>Add title</button>
+      </div>
+      <div class="card card--flush"><div class="list" id="catalogue-list"></div></div>
+      <div class="more"><button type="button" class="btn btn--ghost" id="catalogue-more" hidden>Show more</button></div>
+    </section>
+  </main>
 
-  <div class="hot-toast-stack" id="toasts" aria-live="polite"></div>
+  <dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
+    <button type="button" class="sheet__x" data-close aria-label="Close"><i class="ph ph-x"></i></button>
+    <div class="sheet__body" id="sheet-body" tabindex="-1" autofocus></div>
+  </dialog>
 
-  <!-- command palette -->
-  <div class="hot-overlay" id="cmd" hidden>
-    <div class="hot-overlay__backdrop" data-close-cmd></div>
-    <div class="hot-overlay__panel" role="dialog" aria-modal="true" aria-labelledby="cmd-title">
-      <h3 id="cmd-title" class="hot-overlay__title">Find anything</h3>
-      <input type="search" class="hot-overlay__input" id="cmd-input" placeholder="Book title, member name, SM000123 or LIB10001" autocomplete="off" />
-      <ul class="hot-overlay__results" id="cmd-results"></ul>
+  <dialog class="sheet sheet--narrow" id="gate" aria-labelledby="gate-h" data-locked>
+    <div class="sheet__body">
+      <p class="eyebrow">Staff only</p>
+      <h2 class="sheet__h" id="gate-h">Sign in to the <em>desk</em></h2>
+      <p class="muted">Members borrow through the <a class="link" href="/catalog">catalog</a>.</p>
+      <form class="form form--spaced" id="gate-form">
+        <label class="field">Email<input class="input" name="email" type="email" autocomplete="username" required value="librarian@shelfmark.test" /></label>
+        <label class="field">Password<input class="input" name="password" type="password" autocomplete="current-password" required /></label>
+        <p class="form-error" role="alert"></p>
+        <button class="btn btn--lg">Open the desk</button>
+      </form>
+      <p class="demo">Demo: <code>librarian@shelfmark.test</code> / <code>shelfmark</code></p>
     </div>
-  </div>
+  </dialog>
 
-  <!-- modal -->
-  <div class="hot-modal-root" id="modal" hidden>
-    <div class="hot-modal-root__backdrop" data-close-modal></div>
-    <div class="hot-modal glass-modal desk-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <button type="button" class="btn btn--icon-ghost desk-modal__x" data-close-modal aria-label="Close"><i class="ph ph-x"></i></button>
-      <div id="modal-body"></div>
-    </div>
-  </div>
+  <datalist id="subject-list"></datalist>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
   <script src="shared.js"></script>
   <script src="desk.js"></script>
 </body>
