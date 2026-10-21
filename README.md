@@ -14,7 +14,7 @@ A small but complete **library management system**, built as an Object-Oriented 
 
 ## What it does
 
-**Visitors** can browse the landing page, which shows live catalogue figures, the busiest shelves and the most borrowed titles. They can search the catalogue by title, author, ISBN, subject and publication year, and see every copy of a title with its rack and status.
+**Visitors** can browse the landing page, which shows live catalogue figures, the most borrowed titles and the subject shelves. They can search the catalogue by title, author, ISBN, subject and publication year, and see every copy of a title with its rack and status.
 
 **Members** (Student or Faculty) can:
 - sign up and get a library card with a barcode;
@@ -22,16 +22,16 @@ A small but complete **library management system**, built as an Object-Oriented 
 - renew a loan once, provided it isn't overdue and nobody is queued for it;
 - see their loans, due dates, accruing late fees, holds, fines and notices in one place.
 
-**Librarians** use the Desk, which has:
-- a dashboard with live KPIs, a 14-day circulation chart, loans by subject, the overdue list, holds waiting for pickup and an activity feed;
-- issue and return by scanning a library card and a book's barcode (USB scanners work as keyboards; camera scanning where the browser supports it);
-- loans, catalogue (with an Open Library ISBN lookup when adding titles), members (register, suspend, reinstate), reservations and fines;
-- a `Ctrl + K` command palette across books, members and barcodes.
+**Librarians** use the Desk, which opens on the counter:
+- issue and return side by side: scan a library card and a book's barcode, see who and what before confirming (USB scanners work as keyboards);
+- four live counts (on loan, overdue, holds ready, unpaid fines), the overdue list, holds to hand over in one click and recent activity;
+- tabs for loans, reservations, fines, members (register, suspend, reinstate) and the catalogue (with an Open Library ISBN lookup when adding titles).
 
-| Catalogue (member portal) | Circulation desk (librarian) |
+| Member catalog | My shelf |
 |---|---|
-| ![Catalogue](docs/catalog.webp) | ![Desk](docs/desk.webp) |
-| ![My shelf](docs/shelf.webp) | ![Most borrowed](docs/featured.webp) |
+| ![Catalog](docs/catalog.webp) | ![My shelf](docs/shelf.webp) |
+| **Librarian desk** | **On a phone** |
+| ![Desk](docs/desk.webp) | ![Phone](docs/mobile.webp) |
 
 ## Case study requirements
 
@@ -46,7 +46,7 @@ A small but complete **library management system**, built as an Object-Oriented 
 | Fines for late returns | On return: days late × daily rate (₹5 student, ₹2 faculty); unpaid fines block borrowing |
 | Reserve books that aren't available | Reservation queue per title; the returned copy is held for 3 days for the first in line |
 | Notify when a reserved book is available, or a book is overdue | `MemberNotifier` observer posts in-app notices |
-| Barcodes on books and library cards | CODE128 card barcodes, EAN-13 ISBN barcodes, scanner-friendly inputs and camera scanning |
+| Barcodes on books and library cards | Every copy has a barcode (`SM000123`), every member card a CODE128 barcode; the desk's inputs work with USB scanners |
 
 ## Object-oriented design
 
@@ -69,7 +69,7 @@ flowchart LR
         F[Collect a fine]
         K[Manage catalogue and copies]
         E[Manage members]
-        D[Monitor the dashboard]
+        D[Monitor overdue loans and holds]
     end
     V --- S & C & J
     M --- S & R & N & A
@@ -264,7 +264,7 @@ stateDiagram-v2
     }
 ```
 
-Time-based rules (overdue notices and expired holds) are applied by `Library.sweep()`. It runs when the dashboard or a member's account is loaded, so no scheduler is needed for a single-instance deployment.
+Time-based rules (overdue notices and expired holds) are applied by `Library.sweep()`. It runs when the desk's counter or a member's account is loaded, so no scheduler is needed for a single-instance deployment.
 
 ## Architecture
 
@@ -287,7 +287,7 @@ app/
   main.py       REST API, auth, static pages
   seed.py       demo data, replayed through the Library facade
   db.py         engine and session setup
-web/            landing (index), catalog, desk: one HTML/CSS/JS trio each
+web/            landing (index), catalog and desk pages on one shared theme.css and shared.js
 data/books.json 146 curated titles enriched from Open Library
 scripts/        dataset builder
 tests/          unit tests for every business rule
@@ -295,7 +295,7 @@ tests/          unit tests for every business rule
 
 - **Backend:** Python 3.13, FastAPI, SQLAlchemy 2, psycopg 3
 - **Auth:** scrypt-hashed passwords, signed session cookie (`HttpOnly`, `SameSite=Lax`, `Secure` in production), role guards per endpoint
-- **Frontend:** plain HTML/CSS/JS with no build step, plus GSAP, JsBarcode and Phosphor icons from CDNs
+- **Frontend:** plain HTML/CSS/JS with no build step: one theme for all three pages, CSS animations, plus JsBarcode and Phosphor icons from CDNs
 - **Data:** demo seed with 146 books, 311 copies, 39 accounts and six weeks of simulated circulation. The simulation runs through the same `Library` class the API uses, so every loan, fine, hold and notice obeys the real rules.
 
 ## Run it locally
@@ -334,5 +334,5 @@ The repo includes a Render blueprint ([`render.yaml`](render.yaml)) for a free w
 
 ## Credits
 
-- Interface designs adapted from CodePen pens (MIT): **HYPER LINK, a sandbox concept** by Pharaoh Leap; **[SVG] [CSS] Marquee Glass Bubble** by [Fernando Cohen](https://codepen.io/designfenix); **3D Data cards menu** by Deckard; **Bento element lab** by Mohammad Abu Sakour.
-- Book data and covers: [Open Library](https://openlibrary.org). Photography: [Unsplash](https://unsplash.com). Icons: [Phosphor](https://phosphoricons.com). Animation: [GSAP](https://gsap.com). Barcodes: [JsBarcode](https://github.com/lindell/JsBarcode).
+- Interface adapted from CodePen pens (MIT) and unified into one theme: the hero is **[SVG] [CSS] Marquee Glass Bubble** by [Fernando Cohen](https://codepen.io/designfenix); the paper palette, dark tiles and pale platform come from **3D Data cards menu** by Deckard; the stat tiles, segmented filters, switches and sheets follow the **Bento element lab** by Mohammad Abu Sakour; the striped attention strip is from **HYPER LINK, a sandbox concept** by Pharaoh Leap.
+- Book data and covers: [Open Library](https://openlibrary.org). Photography: [Unsplash](https://unsplash.com). Icons: [Phosphor](https://phosphoricons.com). Barcodes: [JsBarcode](https://github.com/lindell/JsBarcode).
