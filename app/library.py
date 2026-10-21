@@ -27,11 +27,11 @@ class MemberNotifier(Observer):
     """In-app notices: reserved book available, book overdue, fines."""
 
     TEMPLATES = {
-        "issued": "You borrowed “{title}”. Please return it by {due:%d %b}.",
-        "renewed": "“{title}” is renewed and now due {due:%d %b}.",
-        "reservation_ready": "“{title}” is waiting for you at the desk until {until:%d %b}.",
+        "issued": "You borrowed “{title}”. Please return it by {due.day} {due:%b}.",
+        "renewed": "“{title}” is renewed and now due {due.day} {due:%b}.",
+        "reservation_ready": "“{title}” is waiting for you at the desk until {until.day} {until:%b}.",
         "hold_expired": "Your hold on “{title}” expired before it was collected.",
-        "overdue": "“{title}” was due on {due:%d %b}. Late fee is ₹{rate} a day.",
+        "overdue": "“{title}” was due on {due.day} {due:%b}. Late fee is ₹{rate} a day.",
         "fine": "₹{amount} fine for returning “{title}” {days} day(s) late.",
     }
 
