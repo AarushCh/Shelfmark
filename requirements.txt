@@ -1,0 +1,5 @@
+fastapi==0.156.4
+uvicorn[standard]==0.54.0
+sqlalchemy==2.1.5
+psycopg[binary]==3.3.6
+itsdangerous==2.2.0
