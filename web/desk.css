@@ -2047,6 +2047,21 @@ code {
 
 @media (max-width: 960px) {
   .desk-me {
+    position: absolute;
+    top: 6px;
+    right: clamp(12px, 3vw, 20px);
+    grid-template-columns: auto auto;
+    margin: 0;
+    padding: 4px;
+    border: 0;
+    background: none;
+  }
+
+  .desk-me > span:not(.el__av) {
+    display: none;
+  }
+
+  .desk-brand__tag {
     display: none;
   }
 
