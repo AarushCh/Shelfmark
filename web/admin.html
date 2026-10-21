@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Desk · Shelfmark</title>
-  <meta name="description" content="Shelfmark circulation desk: issue and return books, manage loans, reservations, fines, members and the catalogue." />
+  <title>Shelfmark Admin</title>
+  <meta name="description" content="Shelfmark Admin, for library staff: issue and return books, manage loans, reservations, fines, members and the catalogue." />
   <meta name="theme-color" content="#f4efe7" />
+  <meta name="robots" content="noindex" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,34 +17,44 @@
 <body>
   <a class="skip" href="#main">Skip to content</a>
 
-  <header class="topbar">
-    <a class="logo" href="/"><span class="logo__mark">✦</span>SHELFMARK</a>
-    <nav class="topnav" aria-label="Main">
-      <a href="/catalog">Catalog</a>
-      <a href="/desk" aria-current="page">Desk</a>
-      <a href="/docs">API</a>
+  <header class="topbar topbar--wide">
+    <a class="logo" href="/admin"><span class="logo__mark">✦</span>SHELFMARK <span class="logo__tag">ADMIN</span></a>
+    <nav class="tabs topnav" id="tabs" aria-label="Shelfmark Admin" hidden>
+      <a class="tab" href="#counter"><i class="ph ph-scan"></i>Counter</a>
+      <a class="tab" href="#loans"><i class="ph ph-book-open"></i>Loans</a>
+      <a class="tab" href="#reservations"><i class="ph ph-bookmark-simple"></i>Reservations</a>
+      <a class="tab" href="#fines"><i class="ph ph-coins"></i>Fines</a>
+      <a class="tab" href="#members"><i class="ph ph-users"></i>Members</a>
+      <a class="tab" href="#catalogue"><i class="ph ph-books"></i>Catalogue</a>
+      <a class="tab" href="/docs" target="_blank" rel="noopener"><i class="ph ph-code"></i>API</a>
     </nav>
     <div class="who" id="who"></div>
   </header>
 
-  <main class="page" id="main">
-    <div class="page-head">
+  <!-- STAFF SIGN-IN -->
+  <main class="login" id="login" hidden>
+    <form class="login__card form" id="login-form">
       <div>
-        <p class="eyebrow" id="today">Circulation desk</p>
-        <h1 class="headline" id="heading">The <em>desk</em>.</h1>
+        <p class="eyebrow">Library staff only</p>
+        <h1 class="sheet__h">Shelfmark <em>Admin</em></h1>
+        <p class="muted">Students and faculty sign in on the <a class="link" href="/catalog#account">catalog</a> instead.</p>
       </div>
-      <nav class="tabs" id="tabs" aria-label="Desk sections">
-        <a class="tab" href="#counter"><i class="ph ph-scan"></i>Counter</a>
-        <a class="tab" href="#loans"><i class="ph ph-book-open"></i>Loans</a>
-        <a class="tab" href="#reservations"><i class="ph ph-bookmark-simple"></i>Reservations</a>
-        <a class="tab" href="#fines"><i class="ph ph-coins"></i>Fines</a>
-        <a class="tab" href="#members"><i class="ph ph-users"></i>Members</a>
-        <a class="tab" href="#catalogue"><i class="ph ph-books"></i>Catalogue</a>
-      </nav>
-    </div>
+      <label class="field">Staff ID or email<input class="input" name="login" autocomplete="username" required placeholder="STAFF001" /></label>
+      <label class="field">Password<input class="input" name="password" type="password" autocomplete="current-password" required /></label>
+      <p class="form-error" role="alert"></p>
+      <button class="btn btn--lg">Sign in</button>
+      <p class="demo">Demo staff login: <code>STAFF001</code> / <code>shelfmark-admin</code></p>
+    </form>
+  </main>
 
+  <main class="page" id="main" hidden>
     <!-- COUNTER -->
     <section class="view" id="view-counter" data-title="Counter">
+      <h1 class="sr-only">Counter</h1>
+      <div class="view-head">
+        <p class="eyebrow" id="today">Circulation desk</p>
+        <span class="live" title="Refreshes every 20 seconds">Live</span>
+      </div>
       <div class="kpis" id="kpis"></div>
       <div class="counter">
         <form class="card" id="issue-form" autocomplete="off">
@@ -75,23 +86,24 @@
       <div class="split">
         <div class="stack">
           <section class="card">
-            <div class="card__head"><h2 class="card__title"><i class="ph ph-warning-circle"></i>Overdue</h2><a class="card__hint" href="#loans" data-preset="loans:overdue">See all</a></div>
-            <div class="list" id="overdue"></div>
-          </section>
-          <section class="card">
             <div class="card__head"><h2 class="card__title"><i class="ph ph-hand-arrow-down"></i>Ready for pickup</h2><a class="card__hint" href="#reservations" data-preset="reservations:ready">See all</a></div>
             <div class="list" id="ready"></div>
           </section>
+          <section class="card">
+            <div class="card__head"><h2 class="card__title"><i class="ph ph-warning-circle"></i>Overdue</h2><a class="card__hint" href="#loans" data-preset="loans:overdue">See all</a></div>
+            <div class="list" id="overdue"></div>
+          </section>
         </div>
         <section class="card">
-          <div class="card__head"><h2 class="card__title"><i class="ph ph-pulse"></i>Recent activity</h2></div>
-          <div id="feed"></div>
+          <div class="card__head"><h2 class="card__title"><i class="ph ph-pulse"></i>Recent activity</h2><span class="card__hint">Every account, as it happens</span></div>
+          <div class="list" id="feed"></div>
         </section>
       </div>
     </section>
 
     <!-- LOANS -->
     <section class="view" id="view-loans" data-title="Loans" hidden>
+      <h1 class="sr-only">Loans</h1>
       <div class="toolbar">
         <div class="tabs tabs--sm" data-filter="loans" role="group" aria-label="Show">
           <button type="button" class="tab" data-value="active" aria-pressed="true">On loan</button>
@@ -105,6 +117,7 @@
 
     <!-- RESERVATIONS -->
     <section class="view" id="view-reservations" data-title="Reservations" hidden>
+      <h1 class="sr-only">Reservations</h1>
       <div class="toolbar">
         <div class="tabs tabs--sm" data-filter="reservations" role="group" aria-label="Show">
           <button type="button" class="tab" data-value="ready" aria-pressed="true">Ready for pickup</button>
@@ -117,6 +130,7 @@
 
     <!-- FINES -->
     <section class="view" id="view-fines" data-title="Fines" hidden>
+      <h1 class="sr-only">Fines</h1>
       <div class="toolbar">
         <div class="tabs tabs--sm" data-filter="fines" role="group" aria-label="Show">
           <button type="button" class="tab" data-value="unpaid" aria-pressed="true">Unpaid</button>
@@ -129,6 +143,7 @@
 
     <!-- MEMBERS -->
     <section class="view" id="view-members" data-title="Members" hidden>
+      <h1 class="sr-only">Members</h1>
       <div class="toolbar">
         <label class="searchbox searchbox--sm"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="members-q" placeholder="Name, email or card number" aria-label="Search members" /></label>
         <button type="button" class="btn" data-act="add-member"><i class="ph ph-user-plus"></i>Register member</button>
@@ -138,6 +153,7 @@
 
     <!-- CATALOGUE -->
     <section class="view" id="view-catalogue" data-title="Catalogue" hidden>
+      <h1 class="sr-only">Catalogue</h1>
       <div class="toolbar">
         <label class="searchbox searchbox--sm"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="catalogue-q" placeholder="Title, author or ISBN" aria-label="Search the catalogue" /></label>
         <select class="input input--sm" id="catalogue-subject" aria-label="Subject"><option value="">All subjects</option></select>
@@ -153,24 +169,9 @@
     <div class="sheet__body" id="sheet-body" tabindex="-1" autofocus></div>
   </dialog>
 
-  <dialog class="sheet sheet--narrow" id="gate" aria-labelledby="gate-h" data-locked>
-    <div class="sheet__body">
-      <p class="eyebrow">Staff only</p>
-      <h2 class="sheet__h" id="gate-h">Sign in to the <em>desk</em></h2>
-      <p class="muted">Members borrow through the <a class="link" href="/catalog">catalog</a>.</p>
-      <form class="form form--spaced" id="gate-form">
-        <label class="field">Email<input class="input" name="email" type="email" autocomplete="username" required value="librarian@shelfmark.test" /></label>
-        <label class="field">Password<input class="input" name="password" type="password" autocomplete="current-password" required /></label>
-        <p class="form-error" role="alert"></p>
-        <button class="btn btn--lg">Open the desk</button>
-      </form>
-      <p class="demo">Demo: <code>librarian@shelfmark.test</code> / <code>shelfmark</code></p>
-    </div>
-  </dialog>
-
   <datalist id="subject-list"></datalist>
 
   <script src="shared.js"></script>
-  <script src="desk.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>

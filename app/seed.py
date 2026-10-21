@@ -15,7 +15,8 @@ from .models import (
 )
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "books.json"
-PASSWORD = "shelfmark"
+PASSWORD = "shelfmark"  # every demo member
+STAFF_PASSWORD = "shelfmark-admin"  # the demo librarian, who signs in to Shelfmark Admin as STAFF001
 RACKS = {
     "Fantasy": "FAN", "Science Fiction": "SCI", "Mystery": "MYS", "Romance": "ROM", "Horror": "HOR",
     "Historical Fiction": "HFI", "Poetry": "POE", "Biography": "BIO", "History": "HIS", "Science": "SCN",
@@ -70,6 +71,7 @@ def _people(db, rng, today):
         return user
 
     librarian = person(Librarian, "Rohan Iyer", "librarian@shelfmark.test", "STAFF001", today - timedelta(days=400))
+    librarian.set_password(STAFF_PASSWORD)
     student = person(Student, "Ananya Rao", "student@shelfmark.test", "LIB10001", today - timedelta(days=200))
     faculty = person(Faculty, "Dr. Kavita Menon", "faculty@shelfmark.test", "LIB10002", today - timedelta(days=300))
     members = []

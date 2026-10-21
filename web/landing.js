@@ -1,4 +1,4 @@
-// Landing page: bubble parallax, live figures, the most borrowed titles and the subject shelves.
+// Landing page: bubble parallax, live figures, the most borrowed titles, subject shelves and the how-it-works cards.
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ICONS = {
   "Fantasy": "ph-castle-turret", "Science Fiction": "ph-rocket-launch", "Mystery": "ph-detective", "Romance": "ph-heart-half",
@@ -24,6 +24,22 @@ const ICONS = {
   })();
 })();
 
+/* ---------- the top bar follows the section you're reading ---------- */
+const spy = $("#spy");
+const sections = ["popular", "subjects", "how"].map((id) => document.getElementById(id));
+let spying = false;
+function follow() {
+  spying = false;
+  const current = sections.filter((s) => s.getBoundingClientRect().top < innerHeight * 0.45).pop();
+  for (const tab of $$(".tab", spy)) {
+    if (current && tab.hash === `#${current.id}`) tab.setAttribute("aria-current", "location");
+    else tab.removeAttribute("aria-current");
+  }
+  slide(spy);
+}
+addEventListener("scroll", () => spying || (spying = requestAnimationFrame(follow)), { passive: true });
+follow();
+
 /* ---------- sections fade up as they scroll in ---------- */
 const revealer = new IntersectionObserver(
   (entries) => {
@@ -37,34 +53,55 @@ const revealer = new IntersectionObserver(
 );
 const reveal = () => $$(".reveal:not(.is-in)").forEach((el) => revealer.observe(el));
 
-function countUp(el, target) {
-  if (still) return (el.textContent = target.toLocaleString("en-IN"));
-  const start = performance.now();
-  (function tick(now) {
-    const p = Math.min(1, (now - start) / 1400);
-    el.textContent = Math.round(target * (1 - (1 - p) ** 3)).toLocaleString("en-IN");
-    if (p < 1) requestAnimationFrame(tick);
-  })(start);
+/* ---------- shelf tiles lean toward the pointer ---------- */
+$("#shelves").addEventListener("pointermove", (e) => {
+  const tile = e.target.closest(".shelf-tile");
+  if (!tile || still || e.pointerType !== "mouse") return;
+  const r = tile.getBoundingClientRect();
+  const px = (e.clientX - r.left) / r.width;
+  const py = (e.clientY - r.top) / r.height;
+  tile.style.setProperty("--ry", `${(px - 0.5) * 14}deg`);
+  tile.style.setProperty("--rx", `${(0.5 - py) * 14}deg`);
+  tile.style.setProperty("--mx", `${px * 100}%`);
+  tile.style.setProperty("--my", `${py * 100}%`);
+});
+$("#shelves").addEventListener("pointerout", (e) => {
+  const tile = e.target.closest(".shelf-tile");
+  if (tile && !tile.contains(e.relatedTarget)) ["--rx", "--ry"].forEach((p) => tile.style.removeProperty(p));
+});
+
+/* ---------- how-it-works cards turn over on tap (hover does it with a mouse) ---------- */
+for (const step of $$(".step")) {
+  step.addEventListener("click", () => step.setAttribute("aria-pressed", step.getAttribute("aria-pressed") !== "true"));
 }
 
 /* ---------- live data ---------- */
 async function load() {
   const [stats, me] = await Promise.all([api("/api/stats"), api("/api/auth/me").catch(() => null)]);
-  if (me) {
-    const href = me.role === "librarian" ? "/desk" : "/catalog#shelf";
-    $("#who").innerHTML = `<a class="user" href="${href}">${avatar(me.name)}<span>${esc(firstName(me.name))}</span></a>`;
-  }
+  if (me) $("#who").innerHTML = `<a class="user" href="/catalog#shelf">${avatar(me.name)}<span>${esc(firstName(me.name))}</span></a>`;
   $("#intro").textContent =
     `Search ${stats.titles} titles across ${stats.subjects.length} subjects, see the exact rack a copy sits on, ` +
     `reserve what's out and hear the moment it's back.`;
-  $$("[data-stat]").forEach((el) => countUp(el, stats[el.dataset.stat]));
+  $$("[data-stat]").forEach((el) => countTo(el, el.dataset.stat === "subjects" ? stats.subjects.length : stats[el.dataset.stat]));
+
   $("#popular-books").innerHTML = stats.popular.map(bookCard).join("");
+  $$("#popular-books .book").forEach((card, i) => {
+    card.classList.add("reveal");
+    card.style.setProperty("--i", i);
+  });
+
   $("#subjects-kicker").textContent = `${stats.subjects.length} subjects`;
   $("#shelves").innerHTML = stats.subjects
     .map((s, i) => `
-      <a class="tile shelf-tile reveal" style="--i:${i}" href="/catalog?subject=${encodeURIComponent(s.name)}">
-        <i class="ph ${ICONS[s.name] || "ph-books"}" aria-hidden="true"></i>
-        <span><span class="shelf-tile__name">${esc(s.name)}</span><span class="shelf-tile__count">${s.titles} titles</span></span>
+      <a class="shelf-tile reveal" style="--i:${i}" href="/catalog?subject=${encodeURIComponent(s.name)}">
+        <span class="shelf-tile__fan" aria-hidden="true">${s.covers
+          .map((id) => `<img src="${coverUrl(id)}" alt="" loading="lazy" onerror="this.remove()" />`)
+          .join("")}</span>
+        <span class="tile shelf-tile__face">
+          <i class="ph ${ICONS[s.name] || "ph-books"} shelf-tile__icon" aria-hidden="true"></i>
+          <span class="shelf-tile__name">${esc(s.name)}</span>
+          <span class="shelf-tile__count">${s.titles} titles <i class="ph ph-arrow-up-right" aria-hidden="true"></i></span>
+        </span>
       </a>`)
     .join("");
 }

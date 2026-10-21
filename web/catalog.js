@@ -1,4 +1,4 @@
-// Member catalog: search the stacks, open a title, reserve or renew, and keep an eye on your own shelf.
+// Shelfmark for members: search the stacks, open a title, reserve or renew, and keep an eye on your own shelf.
 const PAGE = 24;
 const COPY = { available: ["on the shelf", "ok"], loaned: ["on loan", ""], on_hold: ["on hold", "warn"], lost: ["missing", "err"] };
 const NOTICE_ICONS = {
@@ -6,8 +6,8 @@ const NOTICE_ICONS = {
   issued: "ph-book-open-text", renewed: "ph-arrows-clockwise", hold_expired: "ph-hourglass-medium",
 };
 const form = $("#search-form");
-let me = null; // whoever is signed in
-let account = null; // a member's loans, reservations, fines and notices
+let me = null; // the signed-in member
+let account = null; // their loans, reservations, fines and notices
 let offset = 0;
 
 /* ---------- views ---------- */
@@ -16,24 +16,26 @@ const onShelf = () => location.hash === "#shelf";
 function route() {
   $("#view-browse").hidden = onShelf();
   $("#view-shelf").hidden = !onShelf();
-  for (const tab of $$(".page-head .tab")) {
+  for (const tab of $$("#tabs .tab")) {
     if (tab.hash === (onShelf() ? "#shelf" : "#browse")) tab.setAttribute("aria-current", "page");
     else tab.removeAttribute("aria-current");
   }
+  slide($("#tabs"));
   renderHeading();
+  scrollTo({ top: 0 });
 }
-addEventListener("hashchange", route);
+addEventListener("hashchange", () => {
+  if (location.hash === "#account" || location.hash === "#join") return openAccount(location.hash.slice(1));
+  route();
+});
 
 function renderHeading() {
   if (!onShelf()) {
     $("#kicker").textContent = "The catalogue";
     $("#heading").innerHTML = "Find your next <em>book</em>.";
-  } else if (account) {
-    $("#kicker").textContent = `${me.label} member · ${me.card_no}`;
-    $("#heading").innerHTML = `Hello, <em>${esc(firstName(me.name))}</em>.`;
   } else {
-    $("#kicker").textContent = "Members";
-    $("#heading").innerHTML = "Your <em>shelf</em>.";
+    $("#kicker").textContent = me ? `${me.label} member · card ${me.card_no}` : "Members";
+    $("#heading").innerHTML = "My <em>shelf</em>.";
   }
 }
 
@@ -46,23 +48,51 @@ async function search(append = false) {
   const data = await api(`/api/books?${params}`);
   const cards = data.items.map(bookCard).join("");
   if (append) $("#results").insertAdjacentHTML("beforeend", cards);
-  else $("#results").innerHTML = cards || empty("Nothing on the shelves matches that. Try fewer words or another subject.");
+  else $("#results").innerHTML = cards || empty("Nothing on the shelves matches that. Try fewer words, another subject or any year.");
   $("#count").textContent = `${data.total} ${data.total === 1 ? "title" : "titles"}`;
   $("#more").hidden = offset + PAGE >= data.total;
 }
 
 const searchNow = () => attempt(() => search());
-form.addEventListener("input", debounce(searchNow));
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   searchNow();
 });
 $("#more").addEventListener("click", (e) => attempt(() => search(true), e.currentTarget));
 
+// Year boxes wait for a whole year (or nothing) so typing "1" doesn't search for the year 1.
+const halfTyped = (input) => input.name.startsWith("year_") && input.value !== "" && input.value.replace("-", "").length < 3;
+form.addEventListener("input", debounce((e) => {
+  if (e.target.name?.startsWith("year_")) showYears();
+  if (!halfTyped(e.target)) searchNow();
+}));
+
 function markSubject(subject) {
   form.elements.subject.value = subject;
   for (const chip of $$("#subjects .chip")) chip.setAttribute("aria-pressed", chip.dataset.subject === subject);
 }
+
+/* ---------- published: presets plus a typed range ---------- */
+function showYears() {
+  const [from, to] = [form.elements.year_from.value, form.elements.year_to.value];
+  $("#published-label").textContent =
+    from && to ? `${from} – ${to}` : from ? `From ${from}` : to ? `Up to ${to}` : "Any year";
+  for (const option of $$("[data-years]")) {
+    const [a, b] = option.dataset.years.split(":").map((v) => (v === "-" ? "" : v));
+    option.setAttribute("aria-pressed", (a ?? "") === from && (b ?? "") === to);
+  }
+}
+
+$("#published").addEventListener("click", (e) => {
+  const option = e.target.closest("[data-years]");
+  if (!option) return;
+  const [from = "", to = ""] = option.dataset.years.split(":").map((v) => (v === "-" ? "" : v));
+  form.elements.year_from.value = from;
+  form.elements.year_to.value = to;
+  showYears();
+  $("#published").open = false;
+  searchNow();
+});
 
 /* ---------- a title ---------- */
 async function openBook(id) {
@@ -70,7 +100,7 @@ async function openBook(id) {
   if (!book) return;
   const body = $("#book-body");
   body.dataset.id = book.id;
-  body.innerHTML = `
+  fill(body, `
     <div class="book-detail">
       <div class="book-detail__cover">${coverImg(book, "L")}</div>
       <div class="book-detail__head">
@@ -89,8 +119,8 @@ async function openBook(id) {
       </div>
     </div>
     <h3 class="sheet__sub">Copies <small>${book.available} of ${book.copies} on the shelf</small></h3>
-    <div class="list">${book.items.map(copyRow).join("") || empty("No copies catalogued yet.")}</div>`;
-  if (!$("#book-sheet").open) $("#book-sheet").showModal();
+    <div class="list">${book.items.map(copyRow).join("") || empty("No copies catalogued yet.")}</div>`);
+  openSheet($("#book-sheet"));
 }
 
 function copyRow(item) {
@@ -106,7 +136,6 @@ function copyRow(item) {
 function bookActions(book) {
   const shelf = book.items.find((i) => i.status === "available");
   const rack = shelf ? `<span class="note"><i class="ph ph-map-pin"></i>Rack ${esc(shelf.rack)}</span>` : "";
-  if (me?.role === "librarian") return `<a class="btn" href="/desk">Manage at the desk</a>${rack}`;
   if (!account) {
     return shelf
       ? `${rack}<span class="muted">Borrow it at the desk with your library card.</span>`
@@ -129,22 +158,26 @@ function bookActions(book) {
 }
 
 /* ---------- who's signed in ---------- */
-async function refresh() {
+async function refresh(animate = true) {
   me = await api("/api/auth/me").catch(() => null);
-  account = me && me.role !== "librarian" ? await api("/api/me").catch(() => null) : null;
+  account = me ? await api("/api/me").catch(() => null) : null;
   renderWho();
   renderStrip();
-  renderShelf();
+  renderShelf(animate);
   renderHeading();
 }
+
+// Coming back to the tab picks up anything the desk did meanwhile (a loan issued, a hold ready).
+document.addEventListener("visibilitychange", () => document.hidden || refresh(false));
 
 function renderWho() {
   const badge = $("#shelf-badge");
   badge.hidden = !account?.unread;
   badge.textContent = account?.unread || "";
+  slide($("#tabs"));
   if (!me) return ($("#who").innerHTML = '<button type="button" class="btn btn--sm" data-signin>Sign in</button>');
   $("#who").innerHTML = `
-    <a class="user" href="${me.role === "librarian" ? "/desk" : "#shelf"}">${avatar(me.name)}<span>${esc(firstName(me.name))}</span></a>
+    <a class="user" href="#shelf">${avatar(me.name)}<span>${esc(firstName(me.name))}</span></a>
     <button type="button" class="icon-btn" data-signout aria-label="Sign out" title="Sign out"><i class="ph ph-sign-out"></i></button>`;
 }
 
@@ -207,22 +240,19 @@ const noticeRow = (n) => `
   <div class="notice${n.read ? "" : " is-new"}"><i class="ph ${NOTICE_ICONS[n.kind] || "ph-info"}" aria-hidden="true"></i>
     <span>${esc(n.message)}</span><time datetime="${n.created_at}">${timeAgo(n.created_at)}</time></div>`;
 
-function renderShelf() {
+function renderShelf(animate = true) {
   const view = $("#view-shelf");
   if (!account) {
-    view.innerHTML = me?.role === "librarian"
-      ? `<div class="card prompt"><i class="ph ph-identification-badge"></i><h2>Librarians work at the desk</h2>
-          <p class="muted">Loans, returns and fines are all handled there.</p><a class="btn" href="/desk">Open the desk</a></div>`
-      : `<div class="card prompt"><i class="ph ph-books"></i><h2>Sign in to see your shelf</h2>
-          <p class="muted">Your loans and due dates, reservations, fines and notices, all in one place.</p>
-          <button type="button" class="btn" data-signin>Sign in</button></div>`;
+    view.innerHTML = `<div class="card prompt"><i class="ph ph-books"></i><h2>Sign in to see your shelf</h2>
+      <p class="muted">Your loans and due dates, reservations, fines and notices, all in one place.</p>
+      <button type="button" class="btn" data-signin>Sign in</button></div>`;
     return;
   }
   const active = account.loans.filter((l) => !l.returned_on);
   const returned = account.loans.filter((l) => l.returned_on).slice(0, 5);
   const open = account.reservations.filter((r) => r.status === "waiting" || r.status === "ready");
   const unpaid = account.fines.filter((f) => !f.paid_on);
-  view.innerHTML = `
+  fill(view, `
     <div class="shelf">
       <div class="shelf__main">
         ${section("ph-book-open", "On loan", `${active.length} of ${me.max_books}`,
@@ -247,24 +277,27 @@ function renderShelf() {
         <section class="card">
           <div class="card__head"><h2 class="card__title"><i class="ph ph-bell"></i>Notices</h2>
             ${account.unread ? '<button type="button" class="btn btn--sm btn--ghost" data-read>Mark all read</button>' : ""}</div>
-          <div>${account.notifications.slice(0, 6).map(noticeRow).join("") || empty("No notices yet.")}</div>
+          <div class="list">${account.notifications.slice(0, 6).map(noticeRow).join("") || empty("No notices yet.")}</div>
         </section>
       </aside>
-    </div>`;
+    </div>`, animate);
   JsBarcode("#card-code", me.card_no, { format: "CODE128", height: 54, margin: 0, displayValue: false, background: "transparent", lineColor: "#f6f0e6" });
 }
 
 /* ---------- sign in, join, sign out ---------- */
 function showPane(pane) {
   for (const tab of $$("[data-pane]")) tab.setAttribute("aria-pressed", tab.dataset.pane === pane);
+  slide($(".sheet__tabs"));
   $("#signin-form").hidden = pane !== "signin";
   $("#join-form").hidden = pane !== "join";
 }
 
-function openAccount() {
-  showPane("signin");
-  if (!$("#account").open) $("#account").showModal();
-  $("#signin-form input").focus();
+function openAccount(pane = "account") {
+  if (location.hash === "#account" || location.hash === "#join") history.replaceState(null, "", location.pathname + location.search);
+  if (me) return (location.hash = "shelf");
+  openSheet($("#account"));
+  showPane(pane === "join" ? "join" : "signin");
+  $(`#${pane === "join" ? "join" : "signin"}-form input`).focus();
 }
 
 $("#account").addEventListener("click", (e) => {
@@ -274,7 +307,7 @@ $("#account").addEventListener("click", (e) => {
   if (demo) {
     showPane("signin");
     const f = $("#signin-form");
-    f.email.value = demo.dataset.demo;
+    f.login.value = demo.dataset.demo;
     f.password.value = "shelfmark";
     f.requestSubmit();
   }
@@ -289,8 +322,7 @@ for (const f of [$("#signin-form"), $("#join-form")]) {
     button.disabled = true;
     try {
       const user = await api(join ? "/api/auth/register" : "/api/auth/login", { method: "POST", body: Object.fromEntries(new FormData(f)) });
-      if (user.role === "librarian") return (location.href = "/desk");
-      $("#account").close();
+      closeSheet($("#account"));
       f.reset();
       await afterChange();
       toast(join ? `Welcome to Shelfmark! Your card number is ${user.card_no}.` : `Welcome back, ${firstName(user.name)}.`);
@@ -313,7 +345,7 @@ async function afterChange() {
   if ($("#book-sheet").open) await openBook($("#book-body").dataset.id);
 }
 
-addEventListener("signedout", () => refresh().then(openAccount));
+addEventListener("signedout", () => refresh().then(() => openAccount()));
 
 /* ---------- clicks ---------- */
 document.addEventListener("click", (e) => {
@@ -355,16 +387,18 @@ document.addEventListener("click", (e) => {
   } else if (read) {
     attempt(async () => {
       await api("/api/me/notifications/read", { method: "POST" });
-      await refresh();
+      await refresh(false);
     }, read);
   }
 });
 
 /* ---------- boot ---------- */
 (async function boot() {
+  // Links can ask for a book (?book=), a subject (?subject=) or the sign-in (#account, #join). Read them once and
+  // tidy the address bar, so a reload later doesn't pop the same book open again.
   const params = new URLSearchParams(location.search);
-  const wantsAccount = location.hash === "#account";
-  if (wantsAccount) history.replaceState(null, "", location.pathname + location.search);
+  const wants = location.hash === "#account" || location.hash === "#join" ? location.hash.slice(1) : "";
+  history.replaceState(null, "", location.pathname + (wants ? "" : location.hash));
   route();
 
   let stats;
@@ -377,6 +411,7 @@ document.addEventListener("click", (e) => {
     "beforeend",
     stats.subjects.map((s) => `<button type="button" class="chip" data-subject="${esc(s.name)}" aria-pressed="false">${esc(s.name)}</button>`).join("")
   );
+  $("#years-hint").textContent = `Type a range, like 1950 to 2000. Our books run from ${stats.years.min} to ${stats.years.max}.`;
   if (params.has("subject")) {
     markSubject(params.get("subject"));
     $('#subjects [aria-pressed="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });
@@ -384,5 +419,5 @@ document.addEventListener("click", (e) => {
 
   await Promise.all([refresh(), attempt(() => search())]);
   if (params.has("book")) openBook(params.get("book"));
-  else if (wantsAccount && !me) openAccount();
+  else if (wants) openAccount(wants);
 })();

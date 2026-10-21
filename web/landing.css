@@ -89,10 +89,29 @@
   line-height: 0.86;
   letter-spacing: -0.07em;
   text-transform: uppercase;
+  animation: none;
 }
 
-.content h1 span {
+/* each line slides up from behind its own mask */
+.content h1 > span {
   display: block;
+  overflow: hidden;
+  padding: 0.04em 0 0.02em;
+}
+
+.content h1 > span > span {
+  display: block;
+  animation: line-up 1s var(--ease) both;
+}
+
+.content h1 > span + span > span {
+  animation-delay: 0.12s;
+}
+
+@keyframes line-up {
+  from {
+    transform: translateY(105%);
+  }
 }
 
 .intro {
@@ -293,11 +312,22 @@
   margin-bottom: 38px;
 }
 
+.section__note {
+  max-width: 300px;
+  color: var(--mute);
+  font-size: 14px;
+}
+
 .books--row {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
-/* subject shelves */
+.landing .book {
+  animation: none;
+}
+
+/* ---------- subject shelves: tilt toward the pointer and fan out their most borrowed covers ---------- */
+
 .shelves {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -305,24 +335,73 @@
 }
 
 .shelf-tile {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 22px;
-  min-height: 132px;
-  padding: 18px 18px 16px;
-  border-radius: 24px;
-  transition: transform 0.35s var(--ease), box-shadow 0.35s;
+  position: relative;
+  z-index: 0;
+  display: block;
 }
 
-.shelf-tile > * {
+.shelf-tile:hover,
+.shelf-tile:focus-visible {
+  z-index: 3;
+}
+
+.shelf-tile:focus-visible {
+  outline: none;
+}
+
+.shelf-tile__face {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 140px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.6s var(--ease), box-shadow 0.4s;
+}
+
+.shelf-tile:hover .shelf-tile__face {
+  transition-duration: 0.15s, 0.4s;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.6), inset 0 -2px 4px rgba(255, 255, 255, 0.06), 0 26px 40px -20px rgba(40, 20, 5, 0.6);
+}
+
+.shelf-tile:focus-visible .shelf-tile__face {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* a soft glow that follows the pointer */
+.shelf-tile__face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(180px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 184, 166, 0.22), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.shelf-tile:hover .shelf-tile__face::before {
+  opacity: 1;
+}
+
+.shelf-tile__face > * {
   position: relative;
   z-index: 1;
 }
 
-.shelf-tile i {
+.shelf-tile__icon {
+  margin-bottom: auto;
   color: #ffb8a6;
-  font-size: 24px;
+  font-size: 26px;
+  transition: transform 0.5s var(--ease);
+}
+
+.shelf-tile:hover .shelf-tile__icon {
+  transform: scale(1.18) rotate(-8deg);
 }
 
 .shelf-tile__name {
@@ -332,20 +411,74 @@
 }
 
 .shelf-tile__count {
-  display: block;
-  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   color: rgba(246, 240, 230, 0.5);
   font: 500 10.5px/1 var(--mono);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.shelf-tile:hover,
-.shelf-tile:focus-visible {
-  transform: translateY(-5px);
+.shelf-tile__count i {
+  font-size: 14px;
+  transition: transform 0.35s var(--ease), color 0.35s;
 }
 
-/* how it works */
+.shelf-tile:hover .shelf-tile__count i {
+  color: #ffb8a6;
+  transform: translate(3px, -3px);
+}
+
+/* three covers wait behind the tile and rise out of it on hover */
+.shelf-tile__fan {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.shelf-tile__fan img {
+  position: absolute;
+  top: 0;
+  left: -23px;
+  width: 46px;
+  max-width: none;
+  background: linear-gradient(160deg, #4a3226, #1b1310); /* a dark spine while the cover loads */
+  aspect-ratio: 2 / 3;
+  border-radius: 3px 6px 6px 3px;
+  object-fit: cover;
+  box-shadow: 0 12px 22px -8px rgba(30, 15, 5, 0.6);
+  opacity: 0;
+  transform: translateY(24px);
+  transition: transform 0.55s var(--ease), opacity 0.3s;
+}
+
+.shelf-tile:hover .shelf-tile__fan img,
+.shelf-tile:focus-visible .shelf-tile__fan img {
+  opacity: 1;
+}
+
+.shelf-tile:hover .shelf-tile__fan img:nth-child(1),
+.shelf-tile:focus-visible .shelf-tile__fan img:nth-child(1) {
+  transform: translate(-44px, -56px) rotate(-15deg);
+  transition-delay: 0.05s;
+}
+
+.shelf-tile:hover .shelf-tile__fan img:nth-child(2),
+.shelf-tile:focus-visible .shelf-tile__fan img:nth-child(2) {
+  transform: translateY(-72px);
+}
+
+.shelf-tile:hover .shelf-tile__fan img:nth-child(3),
+.shelf-tile:focus-visible .shelf-tile__fan img:nth-child(3) {
+  transform: translate(44px, -56px) rotate(15deg);
+  transition-delay: 0.1s;
+}
+
+/* ---------- how it works: cards that turn over for the fine print ---------- */
+
 .platform {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -358,34 +491,133 @@
 }
 
 .step {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  perspective: 1400px;
+}
+
+.step:focus-visible {
+  outline: none;
+}
+
+.step:focus-visible .step__face {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.step__inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 0.8s var(--ease);
+}
+
+.step[aria-pressed="true"] .step__inner {
+  transform: rotateY(180deg);
+}
+
+@media (hover: hover) {
+  .step:hover .step__inner {
+    transform: rotateY(180deg);
+  }
+}
+
+.step__face {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 26px 26px 30px;
+  grid-area: 1 / 1;
+  min-height: 250px;
+  padding: 26px 26px 24px;
   border-radius: 30px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-.step > * {
+.step__face > * {
   position: relative;
   z-index: 1;
+}
+
+.step__back {
+  background: linear-gradient(160deg, #3b1c12 0%, #160d09 100%);
+  transform: rotateY(180deg);
+}
+
+.step__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.step__top i {
+  color: #ffb8a6;
+  font-size: 26px;
 }
 
 .step__n {
   color: #ffb8a6;
   font: 500 12px var(--mono);
   letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
-.step h3 {
-  margin-top: 44px;
+.step__title {
+  margin-top: auto;
   font-size: 24px;
+  font-weight: 700;
   letter-spacing: -0.03em;
 }
 
-.step p {
+.step__text {
   color: rgba(246, 240, 230, 0.68);
   font-size: 14.5px;
   line-height: 1.55;
+}
+
+.step__flip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: rgba(246, 240, 230, 0.45);
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.step__list {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.step__list > span {
+  display: flex;
+  gap: 10px;
+  color: rgba(246, 240, 230, 0.82);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.step__list > span::before {
+  content: "✦";
+  flex: none;
+  color: #ffb8a6;
+  font-size: 11px;
+  line-height: 1.9;
+}
+
+.step__list b {
+  color: #fff;
+}
+
+.step__list code {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .footer {
@@ -407,6 +639,10 @@
 .footer nav {
   display: flex;
   gap: 22px;
+}
+
+.footer a {
+  transition: color 0.2s;
 }
 
 .footer a:hover {
@@ -501,8 +737,18 @@
     border-radius: 34px;
   }
 
-  .step h3 {
-    margin-top: 6px;
+  .step__face {
+    min-height: 210px;
+  }
+}
+
+@media (max-width: 760px) {
+  .landing .topnav {
+    display: none;
+  }
+
+  .landing .topbar {
+    padding-bottom: 0;
   }
 }
 
@@ -540,8 +786,8 @@
     gap: 10px;
   }
 
-  .shelf-tile {
-    min-height: 116px;
+  .shelf-tile__face {
+    min-height: 120px;
     border-radius: 20px;
   }
 
@@ -550,7 +796,7 @@
     border-radius: 30px;
   }
 
-  .step {
+  .step__face {
     padding: 22px;
     border-radius: 24px;
   }

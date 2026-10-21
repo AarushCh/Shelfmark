@@ -1,4 +1,4 @@
-// Helpers shared by the landing page, the catalog and the desk.
+// Helpers shared by the landing page, the catalog and Shelfmark Admin.
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -45,11 +45,14 @@ const initials = (name) =>
 /* ---------- small pieces of markup ---------- */
 const tag = (text, tone = "") => `<span class="tag${tone ? " tag--" + tone : ""}">${esc(text)}</span>`;
 const avatar = (name, size = "") => `<span class="avatar${size ? " avatar--" + size : ""}" aria-hidden="true">${esc(initials(name))}</span>`;
-const thumb = (book) => `<span class="thumb"${book.cover_id ? ` style="background-image:url('${coverUrl(book.cover_id, "S")}')"` : ""}></span>`;
+const thumb = (book) =>
+  `<span class="thumb" style="--hue:${hue(book.title)}${book.cover_id ? `;--cover:url('${coverUrl(book.cover_id, "S")}')` : ""}"></span>`;
 const empty = (text) => `<p class="empty">${text}</p>`;
-// The title sits under the cover image, so a cover that fails to load leaves a plain jacket rather than a broken icon.
+// Under every cover image sits a plain jacket in a colour picked from the title, so a cover that is slow or
+// missing still looks like a book instead of a broken image.
+const hue = (text) => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 const coverImg = (book, size = "M") =>
-  `<span class="book__blank">${esc(book.title)}</span>` +
+  `<span class="book__blank" style="--hue:${hue(book.title)}"><b>${esc(book.title)}</b><small>${esc(book.author || "")}</small></span>` +
   (book.cover_id ? `<img src="${coverUrl(book.cover_id, size)}" alt="" loading="lazy" onerror="coverFailed(this)" />` : "");
 
 // Open Library serves covers through archive.org, which now and then answers 502: try once more before giving up.
@@ -121,6 +124,40 @@ const debounce = (fn, ms = 250) => {
   };
 };
 
+// Puts html into an element and numbers the rows of every list in it so they cascade in;
+// `animate = false` swaps them quietly (used for background refreshes).
+function fill(el, html, animate = true) {
+  el.innerHTML = html;
+  for (const list of [el, ...el.querySelectorAll(".list")]) {
+    list.classList.toggle("still", !animate);
+    [...list.children].forEach((child, i) => child.style.setProperty("--i", Math.min(i, 14)));
+  }
+}
+
+// Counts a number up (or down) to its new value.
+function countTo(el, to, format = (n) => n.toLocaleString("en-IN")) {
+  const from = Number(el.dataset.value || 0);
+  el.dataset.value = to;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || from === to) return (el.textContent = format(to));
+  const start = performance.now();
+  (function tick(now) {
+    const p = Math.min(1, (now - start) / 900);
+    el.textContent = format(Math.round(from + (to - from) * (1 - (1 - p) ** 3)));
+    if (p < 1) requestAnimationFrame(tick);
+  })(start);
+}
+
+// Same-page changes (signing in or out) cross-fade where the browser can.
+async function morph(update) {
+  if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return update();
+  const transition = document.startViewTransition(update);
+  transition.ready.catch(() => null); // skipped (say, in a background tab): the update still happens, just without the fade
+  await transition.updateCallbackDone;
+}
+
+// The same goes for the cross-fade between pages, which the browser drops on a reload.
+addEventListener("pagereveal", (e) => e.viewTransition?.ready.catch(() => null));
+
 /* ---------- page chrome ---------- */
 // The top bar picks up a backdrop once the page scrolls under it.
 const topbar = $(".topbar");
@@ -128,8 +165,48 @@ const stick = () => topbar.classList.toggle("is-stuck", scrollY > 4);
 addEventListener("scroll", stick, { passive: true });
 stick();
 
-// Close buttons and backdrop clicks dismiss a dialog, unless it's locked (the desk's sign-in).
+// Slides a .tabs highlight under its current item.
+function slide(tabs) {
+  const on = tabs.querySelector("[aria-current], [aria-pressed=\"true\"]");
+  tabs.style.setProperty("--x", `${on ? on.offsetLeft : 0}px`);
+  tabs.style.setProperty("--w", `${on ? on.offsetWidth : 0}px`);
+  requestAnimationFrame(() => tabs.classList.add("is-ready"));
+}
+const slideAll = () => $$(".tabs").forEach(slide);
+addEventListener("resize", debounce(slideAll, 100));
+document.fonts?.ready.then(slideAll);
+
+// Sheets fade out instead of vanishing: close buttons, backdrop clicks and Escape all come through here.
+function closeSheet(dialog) {
+  if (!dialog?.open || dialog.classList.contains("is-closing")) return;
+  dialog.classList.add("is-closing");
+  const done = (e) => {
+    if (e.target !== dialog) return;
+    dialog.removeEventListener("animationend", done);
+    if (!dialog.classList.contains("is-closing")) return; // reopened while fading out
+    dialog.classList.remove("is-closing");
+    dialog.close();
+  };
+  dialog.addEventListener("animationend", done);
+}
+
+function openSheet(dialog) {
+  dialog.classList.remove("is-closing");
+  if (!dialog.open) dialog.showModal();
+}
+
 document.addEventListener("click", (e) => {
-  if (e.target.matches("dialog[open]:not([data-locked])")) e.target.close();
-  else if (e.target.closest("[data-close]")) e.target.closest("dialog")?.close();
+  if (e.target.matches("dialog[open]:not([data-locked])")) closeSheet(e.target);
+  else if (e.target.closest("[data-close]")) closeSheet(e.target.closest("dialog"));
+  for (const menu of $$("details.menu[open]")) if (!menu.contains(e.target)) menu.open = false;
+});
+
+document.addEventListener("cancel", (e) => {
+  if (!e.target.matches("dialog")) return;
+  e.preventDefault();
+  if (!e.target.hasAttribute("data-locked")) closeSheet(e.target);
+}, true);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") for (const menu of $$("details.menu[open]")) menu.open = false;
 });

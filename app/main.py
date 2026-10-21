@@ -1,4 +1,5 @@
-"""HTTP layer: a JSON API plus the three static apps. The rules live in library.py and models.py."""
+"""HTTP layer: a JSON API plus the pages for Shelfmark (members) and Shelfmark Admin (library staff).
+The rules live in library.py and models.py."""
 import os
 from contextlib import asynccontextmanager
 from datetime import date
@@ -6,7 +7,8 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, func, or_, select, update
@@ -36,9 +38,19 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Shelfmark", summary="Library management system API", lifespan=lifespan)
+# The API docs are only for library staff, so FastAPI's public /docs is switched off and served further down.
+app = FastAPI(title="Shelfmark", summary="Library management system API", lifespan=lifespan,
+              docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, session_cookie="shelfmark", max_age=14 * 24 * 3600,
                    same_site="lax", https_only=ON_RENDER)
+
+
+@app.middleware("http")
+async def always_revalidate(request: Request, call_next):
+    # Without this, browsers keep pages and scripts for a guessed while and can pair an old page with a new API.
+    response = await call_next(request)
+    response.headers.setdefault("Cache-Control", "no-cache")
+    return response
 
 
 @app.exception_handler(LibraryError)
@@ -56,23 +68,28 @@ def get_db():
 DB = Annotated[Session, Depends(get_db)]
 
 
-def current_user(request: Request, db: DB) -> User | None:
-    uid = request.session.get("uid")
-    return db.get(User, uid) if uid else None
+# Members (Shelfmark) and staff (Shelfmark Admin) sign in separately, each into their own slot of the session
+# cookie, so one browser can have the catalog and the admin open side by side.
+MEMBER, STAFF = "member", "staff"
 
 
-def require(role: type[User]):
-    def guard(user: Annotated[User | None, Depends(current_user)]):
+def signed_in(request: Request, db: Session, slot: str, role: type[User]) -> User | None:
+    uid = request.session.get(slot)
+    user = db.get(User, uid) if uid else None
+    return user if isinstance(user, role) else None
+
+
+def require(slot: str, role: type[User]):
+    def guard(request: Request, db: DB):
+        user = signed_in(request, db, slot, role)
         if user is None:
             raise HTTPException(401, "Please sign in first.")
-        if not isinstance(user, role):
-            raise HTTPException(403, f"That needs a {role.label.lower()} account.")
         return user
     return guard
 
 
-CurrentMember = Annotated[Member, Depends(require(Member))]
-CurrentLibrarian = Annotated[Librarian, Depends(require(Librarian))]
+CurrentMember = Annotated[Member, Depends(require(MEMBER, Member))]
+CurrentLibrarian = Annotated[Librarian, Depends(require(STAFF, Librarian))]
 
 
 def number(db: Session, stmt) -> int:
@@ -140,20 +157,26 @@ def health(db: DB):
     return {"ok": True}
 
 
-@app.get("/api/stats", summary="Catalogue figures, the subject list and the most borrowed titles")
+@app.get("/api/stats", summary="Catalogue figures, subjects with their most borrowed covers, the most borrowed titles")
 def stats(db: DB):
     loans_per_book = (select(BookItem.book_id, func.count(Loan.id).label("n"))
                       .join(Loan, Loan.barcode == BookItem.barcode).group_by(BookItem.book_id).subquery())
-    popular = db.scalars(select(Book).outerjoin(loans_per_book, loans_per_book.c.book_id == Book.id)
-                         .order_by(func.coalesce(loans_per_book.c.n, 0).desc(), Book.title).limit(6)
-                         .options(selectinload(Book.items), selectinload(Book.reservations))).all()
-    subjects = db.execute(select(Book.subject, func.count(Book.id)).group_by(Book.subject).order_by(Book.subject)).all()
+    ranked = db.scalars(select(Book).outerjoin(loans_per_book, loans_per_book.c.book_id == Book.id)
+                        .order_by(func.coalesce(loans_per_book.c.n, 0).desc(), Book.title)
+                        .options(selectinload(Book.items), selectinload(Book.reservations))).all()
+    subjects = {}
+    for book in ranked:
+        s = subjects.setdefault(book.subject, {"name": book.subject, "titles": 0, "covers": []})
+        s["titles"] += 1
+        if book.cover_id and len(s["covers"]) < 3:
+            s["covers"].append(book.cover_id)
     return {
-        "titles": number(db, select(func.count(Book.id))),
+        "titles": len(ranked),
         "available": number(db, select(func.count()).where(BookItem.status == ItemStatus.AVAILABLE)),
         "members": number(db, select(func.count(Member.id)).where(Member.active)),
-        "subjects": [{"name": name, "titles": titles} for name, titles in subjects],
-        "popular": [book_json(b) for b in popular],
+        "years": db.execute(select(func.min(Book.year).label("min"), func.max(Book.year).label("max"))).one()._asdict(),
+        "subjects": sorted(subjects.values(), key=lambda s: s["name"]),
+        "popular": [book_json(b) for b in ranked[:6]],
     }
 
 
@@ -176,7 +199,7 @@ def get_book(book_id: int, db: DB):
 # accounts --------------------------------------------------------------------------------------
 
 class Credentials(BaseModel):
-    email: str = Field(max_length=160)
+    login: str = Field(min_length=1, max_length=160, description="Email or card number (staff ID for librarians)")
     password: str = Field(max_length=128)
 
 
@@ -186,32 +209,55 @@ class SignUp(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
-@app.post("/api/auth/login")
-def login(body: Credentials, request: Request, db: DB):
-    user = db.scalar(select(User).where(User.email == body.email.strip().lower()))
-    if user is None or not user.check_password(body.password):
-        raise HTTPException(401, "Wrong email or password.")
-    request.session["uid"] = user.id
+def sign_in(request: Request, db: Session, body: Credentials, slot: str, role: type[User]) -> dict:
+    login = body.login.strip()
+    user = db.scalar(select(User).where(or_(User.email == login.lower(), User.card_no == login.upper())))
+    if not isinstance(user, role) or not user.check_password(body.password):
+        raise HTTPException(401, "Wrong login or password.")
+    request.session[slot] = user.id
     return user_json(user)
+
+
+@app.post("/api/auth/login", summary="Members sign in with their email or library card number")
+def login(body: Credentials, request: Request, db: DB):
+    return sign_in(request, db, body, MEMBER, Member)
 
 
 @app.post("/api/auth/register", status_code=201, summary="Self sign-up (creates a student membership)")
 def register(body: SignUp, request: Request, db: DB):
     member = Library(db).register("student", body.name, body.email, body.password)
     db.commit()
-    request.session["uid"] = member.id
+    request.session[MEMBER] = member.id
     return user_json(member)
 
 
 @app.post("/api/auth/logout")
 def logout(request: Request):
-    request.session.clear()
+    request.session.pop(MEMBER, None)
     return {"ok": True}
 
 
-@app.get("/api/auth/me")
-def whoami(user: Annotated[User | None, Depends(current_user)]):
-    return user_json(user) if user else None
+@app.get("/api/auth/me", summary="The signed-in member, or null")
+def whoami(request: Request, db: DB):
+    member = signed_in(request, db, MEMBER, Member)
+    return user_json(member) if member else None
+
+
+@app.post("/api/admin/login", summary="Library staff sign in to Shelfmark Admin with their staff ID or email")
+def admin_login(body: Credentials, request: Request, db: DB):
+    return sign_in(request, db, body, STAFF, Librarian)
+
+
+@app.post("/api/admin/logout")
+def admin_logout(request: Request):
+    request.session.pop(STAFF, None)
+    return {"ok": True}
+
+
+@app.get("/api/admin/me", summary="The signed-in librarian, or null")
+def admin_whoami(request: Request, db: DB):
+    librarian = signed_in(request, db, STAFF, Librarian)
+    return user_json(librarian) if librarian else None
 
 
 # member ---------------------------------------------------------------------------------------
@@ -265,7 +311,7 @@ def renew(loan_id: int, member: CurrentMember, db: DB):
     return loan_json(loan, lib.today)
 
 
-# circulation desk (librarian) -----------------------------------------------------------------
+# Shelfmark Admin: the circulation desk (librarians) -------------------------------------------
 
 class CardAndCopy(BaseModel):
     card_no: str = Field(min_length=1, max_length=20)
@@ -317,7 +363,7 @@ class MemberChanges(BaseModel):
     active: bool
 
 
-@app.get("/api/desk/overview", summary="The counter: loans out, what's overdue, holds to hand over, recent activity")
+@app.get("/api/admin/overview", summary="The counter: loans out, what's overdue, holds to hand over, recent activity")
 def overview(_: CurrentLibrarian, db: DB):
     lib = Library(db)
     lib.sweep()
@@ -339,7 +385,7 @@ def overview(_: CurrentLibrarian, db: DB):
     }
 
 
-@app.get("/api/desk/loans")
+@app.get("/api/admin/loans")
 def list_loans(_: CurrentLibrarian, db: DB, status: Literal["active", "overdue", "returned"] = "active",
                q: str = "", limit: Annotated[int, Query(ge=1, le=200)] = 60):
     today = date.today()
@@ -355,7 +401,7 @@ def list_loans(_: CurrentLibrarian, db: DB, status: Literal["active", "overdue",
     return [loan_json(loan, today) for loan in db.scalars(stmt.limit(limit))]
 
 
-@app.get("/api/desk/members")
+@app.get("/api/admin/members")
 def list_members(_: CurrentLibrarian, db: DB, q: str = "", limit: Annotated[int, Query(ge=1, le=200)] = 100):
     stmt = select(Member).options(selectinload(Member.loans), selectinload(Member.fines)).order_by(Member.name)
     if q := q.strip():
@@ -366,24 +412,26 @@ def list_members(_: CurrentLibrarian, db: DB, q: str = "", limit: Annotated[int,
             for m in db.scalars(stmt.limit(limit))]
 
 
-@app.get("/api/desk/members/{card_no}", summary="A member's card: loans, reservations, fines")
+@app.get("/api/admin/members/{card_no}", summary="A member's card: loans, reservations, fines")
 def member_card(card_no: str, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     member = lib.member(card_no)
+    notices = sorted(member.notifications, key=lambda n: n.id, reverse=True)[:8]
     return {"user": user_json(member), "fines_due": member.fines_due,
             "loans": [loan_json(loan, lib.today) for loan in member.loans[:30]],
             "reservations": [reservation_json(r) for r in member.reservations[:20]],
-            "fines": [fine_json(f) for f in member.fines]}
+            "fines": [fine_json(f) for f in member.fines],
+            "notices": [{"kind": n.kind, "message": n.message, "created_at": n.created_at} for n in notices]}
 
 
-@app.post("/api/desk/members", status_code=201, summary="Register a student or faculty member")
+@app.post("/api/admin/members", status_code=201, summary="Register a student or faculty member")
 def add_member(body: NewMember, _: CurrentLibrarian, db: DB):
     member = Library(db).register(body.kind, body.name, body.email, body.password)
     db.commit()
     return user_json(member)
 
 
-@app.patch("/api/desk/members/{member_id}", summary="Suspend or reinstate a membership")
+@app.patch("/api/admin/members/{member_id}", summary="Suspend or reinstate a membership")
 def change_member(member_id: int, body: MemberChanges, _: CurrentLibrarian, db: DB):
     member = Library(db).get(Member, member_id)
     member.active = body.active
@@ -391,7 +439,7 @@ def change_member(member_id: int, body: MemberChanges, _: CurrentLibrarian, db: 
     return user_json(member)
 
 
-@app.get("/api/desk/items/{barcode}", summary="Scan a copy: its title, rack, status, loan and hold")
+@app.get("/api/admin/items/{barcode}", summary="Scan a copy: its title, rack, status, loan and hold")
 def scan_copy(barcode: str, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     item = lib.item(barcode)
@@ -402,7 +450,7 @@ def scan_copy(barcode: str, _: CurrentLibrarian, db: DB):
             "loan": loan_json(loan, lib.today) if loan else None, "hold": reservation_json(hold) if hold else None}
 
 
-@app.post("/api/desk/books", status_code=201, summary="Catalogue a new title with its copies")
+@app.post("/api/admin/books", status_code=201, summary="Catalogue a new title with its copies")
 def add_book(body: NewBook, _: CurrentLibrarian, db: DB):
     book = Book(**body.model_dump(exclude={"copies", "rack"}))
     Library(db).catalogue(book, body.copies, body.rack)
@@ -410,7 +458,7 @@ def add_book(body: NewBook, _: CurrentLibrarian, db: DB):
     return book_json(book, detail=True)
 
 
-@app.patch("/api/desk/books/{book_id}")
+@app.patch("/api/admin/books/{book_id}")
 def change_book(book_id: int, body: BookChanges, _: CurrentLibrarian, db: DB):
     book = Library(db).get(Book, book_id)
     for field, value in body.model_dump(exclude_unset=True).items():
@@ -419,7 +467,7 @@ def change_book(book_id: int, body: BookChanges, _: CurrentLibrarian, db: DB):
     return book_json(book, detail=True)
 
 
-@app.post("/api/desk/books/{book_id}/copies", status_code=201)
+@app.post("/api/admin/books/{book_id}/copies", status_code=201)
 def add_copies(book_id: int, body: NewCopies, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     book = lib.get(Book, book_id)
@@ -428,7 +476,7 @@ def add_copies(book_id: int, body: NewCopies, _: CurrentLibrarian, db: DB):
     return book_json(book, detail=True)
 
 
-@app.patch("/api/desk/items/{barcode}", summary="Write a copy off as lost, or put a found one back")
+@app.patch("/api/admin/items/{barcode}", summary="Write a copy off as lost, or put a found one back")
 def change_copy(barcode: str, body: CopyChanges, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     item = lib.set_lost(lib.item(barcode), body.lost)
@@ -436,7 +484,7 @@ def change_copy(barcode: str, body: CopyChanges, _: CurrentLibrarian, db: DB):
     return {"barcode": item.barcode, "status": item.status}
 
 
-@app.post("/api/desk/issue", status_code=201, summary="Check a copy out to a member")
+@app.post("/api/admin/issue", status_code=201, summary="Check a copy out to a member")
 def issue(body: CardAndCopy, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     loan = lib.issue(lib.member(body.card_no), lib.item(body.barcode))
@@ -444,7 +492,7 @@ def issue(body: CardAndCopy, _: CurrentLibrarian, db: DB):
     return loan_json(loan, lib.today)
 
 
-@app.post("/api/desk/return", summary="Check a copy back in; raises a fine if it is late")
+@app.post("/api/admin/return", summary="Check a copy back in; raises a fine if it is late")
 def check_in(body: Copy, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     item = lib.item(body.barcode)
@@ -453,7 +501,7 @@ def check_in(body: Copy, _: CurrentLibrarian, db: DB):
     return loan_json(loan, lib.today) | {"next": item.status}
 
 
-@app.get("/api/desk/reservations")
+@app.get("/api/admin/reservations")
 def list_reservations(_: CurrentLibrarian, db: DB, status: Literal["waiting", "ready", "closed"] = "waiting"):
     closed = (ReservationStatus.FULFILLED, ReservationStatus.CANCELLED, ReservationStatus.EXPIRED)
     where = Reservation.status.in_(closed) if status == "closed" else Reservation.status == status
@@ -461,13 +509,13 @@ def list_reservations(_: CurrentLibrarian, db: DB, status: Literal["waiting", "r
     return [reservation_json(r) for r in db.scalars(select(Reservation).where(where).order_by(order).limit(100))]
 
 
-@app.get("/api/desk/fines")
+@app.get("/api/admin/fines")
 def list_fines(_: CurrentLibrarian, db: DB, status: Literal["unpaid", "paid"] = "unpaid"):
     where = Fine.paid_on.is_(None) if status == "unpaid" else Fine.paid_on.is_not(None)
     return [fine_json(f) for f in db.scalars(select(Fine).where(where).order_by(Fine.id.desc()).limit(100))]
 
 
-@app.post("/api/desk/fines/{fine_id}/pay", summary="Record a fine paid at the desk")
+@app.post("/api/admin/fines/{fine_id}/pay", summary="Record a fine paid at the desk")
 def collect_fine(fine_id: int, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     fine = lib.collect(lib.get(Fine, fine_id))
@@ -482,9 +530,26 @@ def catalog_page():
     return FileResponse(WEB / "catalog.html")
 
 
+@app.get("/admin", include_in_schema=False)
+def admin_page():
+    return FileResponse(WEB / "admin.html")
+
+
 @app.get("/desk", include_in_schema=False)
-def desk_page():
-    return FileResponse(WEB / "desk.html")
+def old_desk_link():
+    return RedirectResponse("/admin")  # the librarian app used to be called the desk
+
+
+@app.get("/api/openapi.json", include_in_schema=False)
+def openapi_schema(_: CurrentLibrarian):
+    return app.openapi()
+
+
+@app.get("/docs", include_in_schema=False)
+def api_docs(request: Request, db: DB):
+    if signed_in(request, db, STAFF, Librarian) is None:
+        return RedirectResponse("/admin")
+    return get_swagger_ui_html(openapi_url="/api/openapi.json", title="Shelfmark API")
 
 
 app.mount("/", StaticFiles(directory=WEB, html=True), name="web")

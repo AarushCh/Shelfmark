@@ -19,11 +19,11 @@
 
   <header class="topbar">
     <a class="logo" href="/"><span class="logo__mark">✦</span>SHELFMARK</a>
-    <nav class="topnav" aria-label="Main">
-      <a href="/catalog">Catalog</a>
-      <a href="#popular">Popular</a>
-      <a href="#subjects">Subjects</a>
-      <a href="/desk">Desk</a>
+    <nav class="tabs topnav" id="spy" aria-label="On this page">
+      <a class="tab" href="#popular">Popular</a>
+      <a class="tab" href="#subjects">Subjects</a>
+      <a class="tab" href="#how">How it works</a>
+      <a class="tab" href="/catalog">Catalog <i class="ph ph-arrow-up-right"></i></a>
     </nav>
     <div class="who" id="who"><a class="btn btn--sm" href="/catalog#account">Sign in</a></div>
   </header>
@@ -33,11 +33,11 @@
     <main class="hero__body" id="main">
       <section class="content">
         <p class="eyebrow">The campus library, catalogued</p>
-        <h1><span>Every book</span><span>in its place</span></h1>
+        <h1><span><span>Every book</span></span><span><span>in its place</span></span></h1>
         <p class="intro" id="intro">Search the catalogue, see the exact rack a copy sits on, reserve what's out and hear the moment it's back.</p>
         <div class="actions">
           <a href="/catalog" class="btn btn--lg">Browse the catalog <i class="ph ph-arrow-up-right"></i></a>
-          <a href="/desk" class="btn btn--lg btn--ghost">Librarian desk</a>
+          <a href="/catalog#join" class="btn btn--lg btn--ghost">Get a library card</a>
         </div>
         <dl class="figures">
           <div><dt>Titles</dt><dd data-stat="titles">—</dd></div>
@@ -240,47 +240,88 @@
     </div>
   </section>
 
-  <!-- SUBJECTS: dark tiles -->
+  <!-- SUBJECTS: dark tiles that fan out their most borrowed covers -->
   <section class="section" id="subjects" aria-labelledby="subjects-h">
     <div class="section__head reveal">
       <div>
         <p class="eyebrow" id="subjects-kicker">Subjects</p>
         <h2 class="headline" id="subjects-h">Pick a <em>shelf</em>.</h2>
       </div>
+      <p class="section__note">Point at a shelf to see what's popular on it, then open it in the catalog.</p>
     </div>
     <div class="shelves" id="shelves"></div>
   </section>
 
-  <!-- HOW IT WORKS: dark tiles on a pale platform -->
+  <!-- HOW IT WORKS: cards that turn over on a pale platform -->
   <section class="section" id="how" aria-labelledby="how-h">
     <div class="section__head reveal">
       <div>
         <p class="eyebrow">How it works</p>
         <h2 class="headline" id="how-h">Borrowing, <em>simply</em>.</h2>
       </div>
+      <p class="section__note">Turn a card over for the fine print.</p>
     </div>
     <div class="platform reveal">
-      <article class="tile step">
-        <span class="step__n">01</span>
-        <h3>Find it</h3>
-        <p>Search by title, author, ISBN, subject or year. Every copy shows the rack it sits on.</p>
-      </article>
-      <article class="tile step">
-        <span class="step__n">02</span>
-        <h3>Borrow it</h3>
-        <p>The desk scans your card and the book. Students take 5 books for 10 days, faculty 10 for 30.</p>
-      </article>
-      <article class="tile step">
-        <span class="step__n">03</span>
-        <h3>Reserve or renew</h3>
-        <p>Queue for a title that's out and we hold the copy for 3 days. Late returns cost ₹5 a day, ₹2 for faculty.</p>
-      </article>
+      <button type="button" class="step" aria-pressed="false">
+        <span class="step__inner">
+          <span class="tile step__face">
+            <span class="step__top"><span class="step__n">01</span><i class="ph ph-magnifying-glass" aria-hidden="true"></i></span>
+            <span class="step__title">Find it</span>
+            <span class="step__text">Search by title, author, ISBN, subject or year. Every copy shows the rack it sits on.</span>
+            <span class="step__flip">The fine print <i class="ph ph-arrows-clockwise" aria-hidden="true"></i></span>
+          </span>
+          <span class="tile step__face step__back">
+            <span class="step__n">01 · Find it</span>
+            <span class="step__list">
+              <span><span><b data-stat="titles">146</b> titles on <b data-stat="subjects">12</b> subject shelves</span></span>
+              <span><span>A rack like <code>FAN-01A</code> means the fantasy aisle, shelf 1, row A</span></span>
+              <span><span>Every copy says whether it's in, out or held for someone</span></span>
+            </span>
+          </span>
+        </span>
+      </button>
+      <button type="button" class="step" aria-pressed="false">
+        <span class="step__inner">
+          <span class="tile step__face">
+            <span class="step__top"><span class="step__n">02</span><i class="ph ph-barcode" aria-hidden="true"></i></span>
+            <span class="step__title">Borrow it</span>
+            <span class="step__text">Bring the book and your library card to the desk. They scan both and you're done.</span>
+            <span class="step__flip">The fine print <i class="ph ph-arrows-clockwise" aria-hidden="true"></i></span>
+          </span>
+          <span class="tile step__face step__back">
+            <span class="step__n">02 · Borrow it</span>
+            <span class="step__list">
+              <span><span><b>Students</b> keep up to 5 books for 10 days</span></span>
+              <span><span><b>Faculty</b> keep up to 10 books for 30 days</span></span>
+              <span><span>One copy of a title per member at a time</span></span>
+            </span>
+          </span>
+        </span>
+      </button>
+      <button type="button" class="step" aria-pressed="false">
+        <span class="step__inner">
+          <span class="tile step__face">
+            <span class="step__top"><span class="step__n">03</span><i class="ph ph-bookmark-simple" aria-hidden="true"></i></span>
+            <span class="step__title">Reserve or renew</span>
+            <span class="step__text">Every copy out? Join the queue and we'll tell you when it's back. Need longer? Renew it.</span>
+            <span class="step__flip">The fine print <i class="ph ph-arrows-clockwise" aria-hidden="true"></i></span>
+          </span>
+          <span class="tile step__face step__back">
+            <span class="step__n">03 · Reserve or renew</span>
+            <span class="step__list">
+              <span><span>A returned copy is held for you for <b>3 days</b></span></span>
+              <span><span>Renew <b>once</b>, if nobody is waiting and it isn't late</span></span>
+              <span><span>Late fees: <b>₹5</b> a day for students, <b>₹2</b> for faculty</span></span>
+            </span>
+          </span>
+        </span>
+      </button>
     </div>
   </section>
 
   <footer class="footer">
     <span>✦ Shelfmark · library management system</span>
-    <nav aria-label="Footer"><a href="/catalog">Catalog</a><a href="/desk">Desk</a><a href="/docs">API</a></nav>
+    <nav aria-label="Footer"><a href="/catalog">Catalog</a><a href="/admin">Shelfmark Admin</a></nav>
     <span>Books: Open Library · Photo: Unsplash</span>
   </footer>
 

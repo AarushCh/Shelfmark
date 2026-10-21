@@ -18,10 +18,9 @@
 
   <header class="topbar">
     <a class="logo" href="/"><span class="logo__mark">✦</span>SHELFMARK</a>
-    <nav class="topnav" aria-label="Main">
-      <a href="/catalog" aria-current="page">Catalog</a>
-      <a href="/desk">Desk</a>
-      <a href="/docs">API</a>
+    <nav class="tabs topnav" id="tabs" aria-label="Catalog">
+      <a class="tab" href="#browse"><i class="ph ph-magnifying-glass"></i>Browse</a>
+      <a class="tab" href="#shelf"><i class="ph ph-books"></i>My shelf<span class="badge" id="shelf-badge" hidden></span></a>
     </nav>
     <div class="who" id="who"></div>
   </header>
@@ -32,10 +31,6 @@
         <p class="eyebrow" id="kicker">The catalogue</p>
         <h1 class="headline" id="heading">Find your next <em>book</em>.</h1>
       </div>
-      <nav class="tabs" aria-label="Catalog sections">
-        <a class="tab" href="#browse" aria-current="page"><i class="ph ph-magnifying-glass"></i>Browse</a>
-        <a class="tab" href="#shelf"><i class="ph ph-books"></i>My shelf<span class="badge" id="shelf-badge" hidden></span></a>
-      </nav>
     </div>
 
     <section class="view" id="view-browse">
@@ -52,13 +47,24 @@
         <div class="search__row">
           <p class="search__count" id="count" aria-live="polite">Searching…</p>
           <div class="search__filters">
-            <span class="years">Published
-              <input class="input input--sm" type="number" name="year_from" placeholder="from" inputmode="numeric" aria-label="Published from year" />–<input class="input input--sm" type="number" name="year_to" placeholder="to" inputmode="numeric" aria-label="Published up to year" />
-            </span>
+            <details class="menu" id="published">
+              <summary class="chip menu__button"><i class="ph ph-calendar-blank" aria-hidden="true"></i><span id="published-label">Any year</span><i class="ph ph-caret-down" aria-hidden="true"></i></summary>
+              <div class="menu__panel">
+                <button type="button" class="menu__option" data-years="" aria-pressed="true">Any year</button>
+                <button type="button" class="menu__option" data-years="-:1899">Classics <small>before 1900</small></button>
+                <button type="button" class="menu__option" data-years="1900:1999">20th century <small>1900 – 1999</small></button>
+                <button type="button" class="menu__option" data-years="2000:-">Modern <small>2000 onwards</small></button>
+                <div class="menu__custom">
+                  <label class="field">From year<input class="input input--sm" type="number" name="year_from" placeholder="e.g. 1950" inputmode="numeric" /></label>
+                  <label class="field">To year<input class="input input--sm" type="number" name="year_to" placeholder="e.g. 2000" inputmode="numeric" /></label>
+                  <p class="menu__hint" id="years-hint">Type a range, like 1950 to 2000.</p>
+                </div>
+              </div>
+            </details>
             <select class="input input--sm" name="sort" aria-label="Sort by">
               <option value="title">A–Z</option>
-              <option value="-year">Newest</option>
-              <option value="year">Oldest</option>
+              <option value="-year">Newest first</option>
+              <option value="year">Oldest first</option>
               <option value="new">Recently added</option>
             </select>
             <label class="check"><input type="checkbox" name="available" value="true" /> On the shelf now</label>
@@ -83,14 +89,14 @@
   <dialog class="sheet sheet--narrow" id="account" aria-labelledby="account-h">
     <button type="button" class="sheet__x" data-close aria-label="Close"><i class="ph ph-x"></i></button>
     <div class="sheet__body">
-      <p class="eyebrow">Members</p>
+      <p class="eyebrow">Shelfmark members</p>
       <h2 class="sheet__h" id="account-h">Your library <em>card</em></h2>
       <div class="tabs tabs--sm sheet__tabs" role="group" aria-label="Sign in or join">
         <button type="button" class="tab" data-pane="signin" aria-pressed="true">Sign in</button>
         <button type="button" class="tab" data-pane="join" aria-pressed="false">Join</button>
       </div>
       <form class="form" id="signin-form">
-        <label class="field">Email<input class="input" name="email" type="email" autocomplete="username" required /></label>
+        <label class="field">Email or card number<input class="input" name="login" autocomplete="username" required placeholder="you@college.edu or LIB10001" /></label>
         <label class="field">Password<input class="input" name="password" type="password" autocomplete="current-password" required /></label>
         <p class="form-error" role="alert"></p>
         <button class="btn btn--lg">Sign in</button>
@@ -102,10 +108,11 @@
         <p class="form-error" role="alert"></p>
         <button class="btn btn--lg">Get my card</button>
       </form>
-      <p class="demo">Try a demo card:
+      <div class="demo">Try a demo card:
         <button type="button" class="chip" data-demo="student@shelfmark.test">Student</button>
         <button type="button" class="chip" data-demo="faculty@shelfmark.test">Faculty</button>
-      </p>
+        <span class="demo__staff">Library staff? <a class="link" href="/admin">Sign in to Shelfmark Admin →</a></span>
+      </div>
     </div>
   </dialog>
 
