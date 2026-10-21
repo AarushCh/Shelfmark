@@ -1,14 +1,19 @@
 # Shelfmark
 
-A small but complete **library management system**, built as an Object-Oriented Software Development case study. Members search the catalogue, reserve titles that are out and renew their loans. Librarians run the circulation desk: issuing and returning copies by barcode, collecting fines and managing the catalogue and memberships.
+A small but complete **library management system**, built as an Object-Oriented Software Development case study. It is two apps on one database:
 
-**Live demo:** {{LIVE_URL}} &nbsp;·&nbsp; **API docs:** {{LIVE_URL}}/docs
+- **Shelfmark** for students and faculty: search the catalogue, reserve titles that are out, renew loans and keep track of fines and notices.
+- **Shelfmark Admin** for library staff: issue and return copies by barcode, collect fines, and manage the catalogue and memberships.
 
-| Demo account | Email | Password |
-|---|---|---|
-| Librarian (Desk) | `librarian@shelfmark.test` | `shelfmark` |
-| Student member | `student@shelfmark.test` | `shelfmark` |
-| Faculty member | `faculty@shelfmark.test` | `shelfmark` |
+**Live demo:** {{LIVE_URL}}
+
+| App | Sign in at | Login | Password |
+|---|---|---|---|
+| Shelfmark (student) | `/catalog` | `student@shelfmark.test` or card `LIB10001` | `shelfmark` |
+| Shelfmark (faculty) | `/catalog` | `faculty@shelfmark.test` or card `LIB10002` | `shelfmark` |
+| Shelfmark Admin (librarian) | `/admin` | staff ID `STAFF001` | `shelfmark-admin` |
+
+Members and staff sign in at separate doors with separate sessions, so both apps can be open side by side in one browser. The interactive API docs at `/docs` are for signed-in staff only.
 
 ![Landing page](docs/landing.webp)
 
@@ -16,22 +21,22 @@ A small but complete **library management system**, built as an Object-Oriented 
 
 **Visitors** can browse the landing page, which shows live catalogue figures, the most borrowed titles and the subject shelves. They can search the catalogue by title, author, ISBN, subject and publication year, and see every copy of a title with its rack and status.
 
-**Members** (Student or Faculty) can:
-- sign up and get a library card with a barcode;
+**Members** (Student or Faculty) use Shelfmark to:
+- sign up and get a library card with a barcode, then sign in with their email or card number;
 - reserve a title when every copy is out, joining a first-come, first-served queue;
 - renew a loan once, provided it isn't overdue and nobody is queued for it;
-- see their loans, due dates, accruing late fees, holds, fines and notices in one place.
+- see their loans, due dates, accruing late fees, holds, fines and notices on *My shelf*.
 
-**Librarians** use the Desk, which opens on the counter:
+**Librarians** sign in to Shelfmark Admin with their staff ID. It opens on the counter:
 - issue and return side by side: scan a library card and a book's barcode, see who and what before confirming (USB scanners work as keyboards);
-- four live counts (on loan, overdue, holds ready, unpaid fines), the overdue list, holds to hand over in one click and recent activity;
-- tabs for loans, reservations, fines, members (register, suspend, reinstate) and the catalogue (with an Open Library ISBN lookup when adding titles).
+- four live counts (on loan, overdue, holds ready, unpaid fines), holds to hand over in one click, the overdue list and an activity feed from every account that refreshes itself;
+- tabs for loans, reservations, fines, members (register, suspend, reinstate, see a card's recent activity) and the catalogue (with an Open Library ISBN lookup when adding titles).
 
-| Member catalog | My shelf |
+| Shelfmark: the catalog | Shelfmark: my shelf |
 |---|---|
 | ![Catalog](docs/catalog.webp) | ![My shelf](docs/shelf.webp) |
-| **Librarian desk** | **On a phone** |
-| ![Desk](docs/desk.webp) | ![Phone](docs/mobile.webp) |
+| **Shelfmark Admin** | **On a phone** |
+| ![Shelfmark Admin](docs/admin.webp) | ![Phone](docs/mobile.webp) |
 
 ## Case study requirements
 
@@ -40,13 +45,13 @@ A small but complete **library management system**, built as an Object-Oriented 
 | Search books by title, author, subject category and publication date | `GET /api/books?q=&by=title\|author\|isbn&subject=&year_from=&year_to=` |
 | Every book has a unique identifier and a rack number to locate it | ISBN on `Book`; a barcode and rack (e.g. `FAN-01A`) on every `BookItem` |
 | More than one copy of a book (*book items*) | `Book 1 ── * BookItem`; copies can be added, written off and found again |
-| Who has a particular book, and what a member has borrowed | Desk → Loans (search by member, card, title or barcode), member cards, copy scans |
+| Who has a particular book, and what a member has borrowed | Admin → Loans (search by member, card, title or barcode), member cards, copy scans |
 | Maximum books per member | Students 5, faculty 10 (`Member.max_books`) |
 | Maximum days a book can be kept | Students 10 days, faculty 30 (`Member.loan_days`), one renewal |
 | Fines for late returns | On return: days late × daily rate (₹5 student, ₹2 faculty); unpaid fines block borrowing |
 | Reserve books that aren't available | Reservation queue per title; the returned copy is held for 3 days for the first in line |
 | Notify when a reserved book is available, or a book is overdue | `MemberNotifier` observer posts in-app notices |
-| Barcodes on books and library cards | Every copy has a barcode (`SM000123`), every member card a CODE128 barcode; the desk's inputs work with USB scanners |
+| Barcodes on books and library cards | Every copy has a barcode (`SM000123`), every member card a CODE128 barcode; the Admin counter works with USB scanners |
 
 ## Object-oriented design
 
@@ -194,13 +199,13 @@ classDiagram
 ```mermaid
 sequenceDiagram
     actor L as Librarian
-    participant D as Desk (browser)
+    participant D as Admin (browser)
     participant A as FastAPI
     participant Lib as Library
     participant M as Member
     participant O as Observers
     L->>D: scan library card, scan book
-    D->>A: POST /api/desk/issue {card_no, barcode}
+    D->>A: POST /api/admin/issue {card_no, barcode}
     A->>Lib: issue(member, item)
     Lib->>M: ensure_can_borrow()
     Note right of M: suspended? unpaid fines?<br/>already at max_books?
@@ -264,12 +269,12 @@ stateDiagram-v2
     }
 ```
 
-Time-based rules (overdue notices and expired holds) are applied by `Library.sweep()`. It runs when the desk's counter or a member's account is loaded, so no scheduler is needed for a single-instance deployment.
+Time-based rules (overdue notices and expired holds) are applied by `Library.sweep()`. It runs when the Admin counter or a member's shelf is loaded, so no scheduler is needed for a single-instance deployment.
 
 ## Architecture
 
 ```
-Browser ── landing / catalog / desk (HTML, CSS, vanilla JS)
+Browser ── landing · Shelfmark (catalog) · Shelfmark Admin (HTML, CSS, vanilla JS)
    │  JSON over HTTPS, session cookie
 FastAPI (app/main.py) ── validation, auth guards, JSON shapes
    │
@@ -287,15 +292,15 @@ app/
   main.py       REST API, auth, static pages
   seed.py       demo data, replayed through the Library facade
   db.py         engine and session setup
-web/            landing (index), catalog and desk pages on one shared theme.css and shared.js
+web/            landing (index), catalog and admin pages on one shared theme.css and shared.js
 data/books.json 146 curated titles enriched from Open Library
 scripts/        dataset builder
 tests/          unit tests for every business rule
 ```
 
 - **Backend:** Python 3.13, FastAPI, SQLAlchemy 2, psycopg 3
-- **Auth:** scrypt-hashed passwords, signed session cookie (`HttpOnly`, `SameSite=Lax`, `Secure` in production), role guards per endpoint
-- **Frontend:** plain HTML/CSS/JS with no build step: one theme for all three pages, CSS animations, plus JsBarcode and Phosphor icons from CDNs
+- **Auth:** scrypt-hashed passwords; members and staff sign in at separate endpoints into separate slots of one signed session cookie (`HttpOnly`, `SameSite=Lax`, `Secure` in production); role guards on every endpoint
+- **Frontend:** plain HTML/CSS/JS with no build step: one theme for every page, CSS animations and page transitions, plus JsBarcode and Phosphor icons from CDNs
 - **Data:** demo seed with 146 books, 311 copies, 39 accounts and six weeks of simulated circulation. The simulation runs through the same `Library` class the API uses, so every loan, fine, hold and notice obeys the real rules.
 
 ## Run it locally
@@ -316,17 +321,17 @@ python -m unittest        # 17 tests covering the case-study rules
 | Page | URL |
 |---|---|
 | Landing | `/` |
-| Member catalog | `/catalog` |
-| Librarian desk | `/desk` |
-| Interactive API docs | `/docs` |
+| Shelfmark (members) | `/catalog` |
+| Shelfmark Admin (staff) | `/admin` |
+| Interactive API docs (staff only) | `/docs` |
 
 ## Deploy
 
-The repo includes a Render blueprint ([`render.yaml`](render.yaml)) for a free web service, backed by a free Neon Postgres database.
+One web service on Render's free plan and one free Neon Postgres database. Nothing else to set up.
 
-1. Create a Neon project and copy its **pooled** connection string.
-2. [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)]({{DEPLOY_URL}}) and paste the connection string as `DATABASE_URL`. `SECRET_KEY` is generated for you.
-3. On first boot the app creates its tables and seeds the demo data.
+1. On [Neon](https://neon.tech), create a project and copy its **pooled** connection string.
+2. Click [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)]({{DEPLOY_URL}}) and paste that string as `DATABASE_URL`. Render generates `SECRET_KEY` itself.
+3. The first boot creates the tables and seeds the demo library.
 
 ## Dataset
 
