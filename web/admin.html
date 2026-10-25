@@ -13,6 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
   <link rel="stylesheet" href="theme.css" />
+  <!-- registered before the first paint: a page fade cut short by a quick second click would otherwise log an error -->
+  <script>addEventListener("pagereveal", (e) => e.viewTransition?.ready.catch(() => null));</script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>

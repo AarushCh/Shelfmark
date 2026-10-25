@@ -7,11 +7,13 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Path as PathParam
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import desc, func, or_, select, update
+from sqlalchemy.exc import DataError
 from sqlalchemy.orm import Session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -48,14 +50,22 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, session_cookie="she
 @app.middleware("http")
 async def always_revalidate(request: Request, call_next):
     # Without this, browsers keep pages and scripts for a guessed while and can pair an old page with a new API.
+    # Covers are named by ISBN and never change, so those can be kept for a week.
     response = await call_next(request)
-    response.headers.setdefault("Cache-Control", "no-cache")
+    cover = request.url.path.startswith("/covers/") and response.status_code == 200
+    response.headers.setdefault("Cache-Control", "public, max-age=604800" if cover else "no-cache")
     return response
 
 
 @app.exception_handler(LibraryError)
 def rule_broken(_: Request, exc: LibraryError):
     return JSONResponse({"detail": str(exc)}, status_code=404 if isinstance(exc, NotFound) else 409)
+
+
+@app.exception_handler(DataError)
+def unstorable(_: Request, exc: DataError):
+    # Input the database refuses outright, such as text with a NUL character (Postgres won't store one).
+    return JSONResponse({"detail": "Some of that input can't be stored. Check for unusual characters."}, status_code=422)
 
 
 # dependencies ---------------------------------------------------------------------------------
@@ -66,6 +76,7 @@ def get_db():
 
 
 DB = Annotated[Session, Depends(get_db)]
+Id = Annotated[int, PathParam(ge=1, le=2**31 - 1)]  # ids are 32-bit integers in the database
 
 
 # Members (Shelfmark) and staff (Shelfmark Admin) sign in separately, each into their own slot of the session
@@ -100,7 +111,7 @@ def number(db: Session, stmt) -> int:
 
 def brief(book: Book) -> dict:
     return {"id": book.id, "title": book.title, "author": book.author, "subject": book.subject,
-            "cover_id": book.cover_id}
+            "cover": book.cover}
 
 
 def book_json(book: Book, detail: bool = False) -> dict:
@@ -168,8 +179,8 @@ def stats(db: DB):
     for book in ranked:
         s = subjects.setdefault(book.subject, {"name": book.subject, "titles": 0, "covers": []})
         s["titles"] += 1
-        if book.cover_id and len(s["covers"]) < 3:
-            s["covers"].append(book.cover_id)
+        if book.cover and len(s["covers"]) < 3:
+            s["covers"].append(book.cover)
     return {
         "titles": len(ranked),
         "available": number(db, select(func.count()).where(BookItem.status == ItemStatus.AVAILABLE)),
@@ -183,30 +194,39 @@ def stats(db: DB):
 @app.get("/api/books", summary="Search the catalogue by title, author, ISBN, subject and publication year")
 def search_books(
     db: DB, q: str = "", by: Literal["all", "title", "author", "isbn"] = "all", subject: str = "",
-    year_from: int | None = None, year_to: int | None = None, available: bool = False,
+    year_from: Annotated[int | None, Query(ge=-3000, le=3000)] = None,
+    year_to: Annotated[int | None, Query(ge=-3000, le=3000)] = None, available: bool = False,
     sort: Literal["title", "year", "-year", "new"] = "title",
-    limit: Annotated[int, Query(ge=1, le=100)] = 24, offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 24, offset: Annotated[int, Query(ge=0, le=100_000)] = 0,
 ):
     total, books = Library(db).search(q, by, subject, year_from, year_to, available, sort, limit, offset)
     return {"total": total, "items": [book_json(b) for b in books]}
 
 
 @app.get("/api/books/{book_id}", summary="A title with each copy's rack, status and due date")
-def get_book(book_id: int, db: DB):
+def get_book(book_id: Id, db: DB):
     return book_json(Library(db).get(Book, book_id), detail=True)
 
 
 # accounts --------------------------------------------------------------------------------------
 
-class Credentials(BaseModel):
+class Form(BaseModel):
+    """Request bodies: text is trimmed before the length checks, so "   " doesn't count as a name or a title."""
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+
+Password = Annotated[str, StringConstraints(strip_whitespace=False)]  # spaces in a password are part of it
+
+
+class Credentials(Form):
     login: str = Field(min_length=1, max_length=160, description="Email or card number (staff ID for librarians)")
-    password: str = Field(max_length=128)
+    password: Password = Field(max_length=128)
 
 
-class SignUp(BaseModel):
+class SignUp(Form):
     name: str = Field(min_length=2, max_length=120)
     email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=160)
-    password: str = Field(min_length=8, max_length=128)
+    password: Password = Field(min_length=8, max_length=128)
 
 
 def sign_in(request: Request, db: Session, body: Credentials, slot: str, role: type[User]) -> dict:
@@ -288,7 +308,7 @@ def mark_notifications_read(member: CurrentMember, db: DB):
 
 
 @app.post("/api/books/{book_id}/reserve", status_code=201, summary="Join the queue for a title with no copy free")
-def reserve(book_id: int, member: CurrentMember, db: DB):
+def reserve(book_id: Id, member: CurrentMember, db: DB):
     lib = Library(db)
     reservation = lib.reserve(member, lib.get(Book, book_id))
     db.commit()
@@ -296,7 +316,7 @@ def reserve(book_id: int, member: CurrentMember, db: DB):
 
 
 @app.post("/api/reservations/{reservation_id}/cancel")
-def cancel_reservation(reservation_id: int, member: CurrentMember, db: DB):
+def cancel_reservation(reservation_id: Id, member: CurrentMember, db: DB):
     lib = Library(db)
     lib.cancel(lib.get(Reservation, reservation_id), member)
     db.commit()
@@ -304,7 +324,7 @@ def cancel_reservation(reservation_id: int, member: CurrentMember, db: DB):
 
 
 @app.post("/api/loans/{loan_id}/renew")
-def renew(loan_id: int, member: CurrentMember, db: DB):
+def renew(loan_id: Id, member: CurrentMember, db: DB):
     lib = Library(db)
     loan = lib.renew(lib.get(Loan, loan_id), member)
     db.commit()
@@ -313,16 +333,16 @@ def renew(loan_id: int, member: CurrentMember, db: DB):
 
 # Shelfmark Admin: the circulation desk (librarians) -------------------------------------------
 
-class CardAndCopy(BaseModel):
+class CardAndCopy(Form):
     card_no: str = Field(min_length=1, max_length=20)
     barcode: str = Field(min_length=1, max_length=20)
 
 
-class Copy(BaseModel):
+class Copy(Form):
     barcode: str = Field(min_length=1, max_length=20)
 
 
-class NewBook(BaseModel):
+class NewBook(Form):
     isbn: str = Field(pattern=r"^(\d{9}[\dX]|\d{13})$")
     title: str = Field(min_length=1, max_length=300)
     author: str = Field(min_length=1, max_length=200)
@@ -330,28 +350,28 @@ class NewBook(BaseModel):
     publisher: str | None = Field(None, max_length=200)
     year: int | None = Field(None, ge=-3000, le=2100)
     pages: int | None = Field(None, ge=1, le=20000)
-    cover_id: int | None = None
+    cover: str | None = Field(None, max_length=300, pattern=r"^(https://|/covers/)[\w.~:/?#@!$&*+,;=%-]+$")
     description: str | None = Field(None, max_length=4000)
     copies: int = Field(1, ge=1, le=20)
     rack: str = Field(min_length=1, max_length=20)
 
 
-class BookChanges(BaseModel):
-    title: str | None = Field(None, min_length=1, max_length=300)
-    author: str | None = Field(None, min_length=1, max_length=200)
-    subject: str | None = Field(None, min_length=1, max_length=60)
+class BookChanges(Form):  # leave a field out to keep it; title, author and subject can't be blanked
+    title: str = Field(None, min_length=1, max_length=300)
+    author: str = Field(None, min_length=1, max_length=200)
+    subject: str = Field(None, min_length=1, max_length=60)
     publisher: str | None = Field(None, max_length=200)
     year: int | None = Field(None, ge=-3000, le=2100)
     pages: int | None = Field(None, ge=1, le=20000)
     description: str | None = Field(None, max_length=4000)
 
 
-class NewCopies(BaseModel):
+class NewCopies(Form):
     count: int = Field(1, ge=1, le=20)
     rack: str = Field(min_length=1, max_length=20)
 
 
-class CopyChanges(BaseModel):
+class CopyChanges(Form):
     lost: bool
 
 
@@ -359,7 +379,7 @@ class NewMember(SignUp):
     kind: Literal["student", "faculty"]
 
 
-class MemberChanges(BaseModel):
+class MemberChanges(Form):
     active: bool
 
 
@@ -432,7 +452,7 @@ def add_member(body: NewMember, _: CurrentLibrarian, db: DB):
 
 
 @app.patch("/api/admin/members/{member_id}", summary="Suspend or reinstate a membership")
-def change_member(member_id: int, body: MemberChanges, _: CurrentLibrarian, db: DB):
+def change_member(member_id: Id, body: MemberChanges, _: CurrentLibrarian, db: DB):
     member = Library(db).get(Member, member_id)
     member.active = body.active
     db.commit()
@@ -459,7 +479,7 @@ def add_book(body: NewBook, _: CurrentLibrarian, db: DB):
 
 
 @app.patch("/api/admin/books/{book_id}")
-def change_book(book_id: int, body: BookChanges, _: CurrentLibrarian, db: DB):
+def change_book(book_id: Id, body: BookChanges, _: CurrentLibrarian, db: DB):
     book = Library(db).get(Book, book_id)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(book, field, value)
@@ -468,7 +488,7 @@ def change_book(book_id: int, body: BookChanges, _: CurrentLibrarian, db: DB):
 
 
 @app.post("/api/admin/books/{book_id}/copies", status_code=201)
-def add_copies(book_id: int, body: NewCopies, _: CurrentLibrarian, db: DB):
+def add_copies(book_id: Id, body: NewCopies, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     book = lib.get(Book, book_id)
     lib.add_copies(book, body.count, body.rack)
@@ -516,7 +536,7 @@ def list_fines(_: CurrentLibrarian, db: DB, status: Literal["unpaid", "paid"] = 
 
 
 @app.post("/api/admin/fines/{fine_id}/pay", summary="Record a fine paid at the desk")
-def collect_fine(fine_id: int, _: CurrentLibrarian, db: DB):
+def collect_fine(fine_id: Id, _: CurrentLibrarian, db: DB):
     lib = Library(db)
     fine = lib.collect(lib.get(Fine, fine_id))
     db.commit()

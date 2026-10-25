@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
   <link rel="stylesheet" href="theme.css" />
   <link rel="stylesheet" href="landing.css" />
+  <!-- registered before the first paint: a page fade cut short by a quick second click would otherwise log an error -->
+  <script>addEventListener("pagereveal", (e) => e.viewTransition?.ready.catch(() => null));</script>
 </head>
 <body class="landing">
   <a class="skip" href="#main">Skip to content</a>
@@ -273,7 +275,7 @@
           <span class="tile step__face step__back">
             <span class="step__n">01 · Find it</span>
             <span class="step__list">
-              <span><span><b data-stat="titles">146</b> titles on <b data-stat="subjects">12</b> subject shelves</span></span>
+              <span><span><b data-stat="titles">365</b> titles on <b data-stat="subjects">18</b> subject shelves</span></span>
               <span><span>A rack like <code>FAN-01A</code> means the fantasy aisle, shelf 1, row A</span></span>
               <span><span>Every copy says whether it's in, out or held for someone</span></span>
             </span>

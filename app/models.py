@@ -148,7 +148,7 @@ class Book(Base):
     publisher: Mapped[str | None] = mapped_column(String(200))
     year: Mapped[int | None]
     pages: Mapped[int | None]
-    cover_id: Mapped[int | None]  # Open Library cover
+    cover: Mapped[str | None] = mapped_column(String(300))  # /covers/{isbn}.jpg, or a full image URL
     description: Mapped[str | None] = mapped_column(Text)
     added_on: Mapped[date] = mapped_column(default=date.today)
 
@@ -240,7 +240,7 @@ class Notification(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     kind: Mapped[str] = mapped_column(String(24))
-    message: Mapped[str] = mapped_column(String(300))
+    message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime]
     read: Mapped[bool] = mapped_column(default=False)
 
@@ -254,4 +254,4 @@ class Activity(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     at: Mapped[datetime] = mapped_column(index=True)
     kind: Mapped[str] = mapped_column(String(24))
-    message: Mapped[str] = mapped_column(String(300))
+    message: Mapped[str] = mapped_column(Text)

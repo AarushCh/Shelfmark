@@ -1,4 +1,4 @@
-"""Demo data: the curated catalogue plus six weeks of circulation replayed through the real Library facade."""
+"""Demo data: the curated catalogue plus two months of circulation replayed through the real Library facade."""
 import itertools
 import json
 import random
@@ -20,7 +20,8 @@ STAFF_PASSWORD = "shelfmark-admin"  # the demo librarian, who signs in to Shelfm
 RACKS = {
     "Fantasy": "FAN", "Science Fiction": "SCI", "Mystery": "MYS", "Romance": "ROM", "Horror": "HOR",
     "Historical Fiction": "HFI", "Poetry": "POE", "Biography": "BIO", "History": "HIS", "Science": "SCN",
-    "Philosophy": "PHI", "Programming": "PRG",
+    "Philosophy": "PHI", "Programming": "PRG", "Indian Fiction": "IND", "Young Adult": "YAD", "Graphic Novels": "GRA",
+    "Psychology": "PSY", "Business": "BUS", "Self-Help": "SLF",
 }
 NAMES = [
     "Aarav Mehta", "Diya Kapoor", "Kabir Singh", "Meera Nair", "Rohan Das", "Isha Verma", "Arjun Reddy",
@@ -28,7 +29,10 @@ NAMES = [
     "Ishaan Malhotra", "Tara Menon", "Dev Chatterjee", "Nisha Agarwal", "Yash Kulkarni", "Riya Banerjee",
     "Omar Sheikh", "Zara Khan", "Liam Fernandes", "Sara Thomas", "Neil D'Souza", "Pooja Hegde", "Karan Batra",
     "Aisha Siddiqui", "Varun Tiwari", "Ananya Ghosh", "Nikhil Jain", "Priya Sen", "Siddharth Rao",
-    "Fatima Ali", "Rahul Mishra", "Leah George",
+    "Fatima Ali", "Rahul Mishra", "Leah George", "Arnav Saxena", "Ishita Chawla", "Manav Bhatt", "Sneha Patil",
+    "Harsh Vardhan", "Kavya Reddy", "Aryan Kapoor", "Mehak Arora", "Rudra Pandey", "Tanvi Deshmukh", "Samar Qureshi",
+    "Navya Krishnan", "Pranav Hegde", "Jiya Bhalla", "Kunal Sethi", "Avni Mathur", "Dhruv Ahuja", "Simran Kaur",
+    "Arjun Nambiar", "Ira Dutta", "Vivaan Sood", "Prisha Goyal", "Ayaan Mirza", "Diya Fernandes",
 ]
 
 
@@ -39,7 +43,7 @@ def seed(db: Session, today: date | None = None) -> None:
     rng = random.Random(42)
     books = _catalogue(db, rng, today - timedelta(days=120))
     librarian, student, faculty, members = _people(db, rng, today)
-    _simulate(db, rng, books, members, today, days=42)
+    _simulate(db, rng, books, members, today, days=60)
     _demo_accounts(db, rng, books, student, faculty, members, today)
     Library(db, today).sweep()
     db.commit()
@@ -85,7 +89,7 @@ def _people(db, rng, today):
 
 def _simulate(db, rng, books, members, today, days):
     """Walk-ins borrow popular titles, some come back late, queues form and holds get collected or expire."""
-    weights = [rng.random() ** 2 + (0.6 if b.subject in ("Fantasy", "Science Fiction", "Mystery", "Programming")
+    weights = [rng.random() ** 2 + (0.6 if b.subject in ("Fantasy", "Science Fiction", "Mystery", "Programming", "Young Adult", "Self-Help")
                                      else 0) for b in books]
     plans = {}  # loan -> day the borrower will bring it back
     for back in range(days, 0, -1):
@@ -107,7 +111,7 @@ def _simulate(db, rng, books, members, today, days):
                 for fine in member.fines:
                     if not fine.paid_on:
                         lib.collect(fine)
-        for _ in range(rng.randint(3, 8)):
+        for _ in range(rng.randint(4, 10)):
             lib.clock = _later(rng, lib.clock)
             member, book = rng.choice(members), rng.choices(books, weights)[0]
             copy = next((i for i in book.items if i.status == ItemStatus.AVAILABLE), None)

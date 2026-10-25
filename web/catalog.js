@@ -9,6 +9,7 @@ const form = $("#search-form");
 let me = null; // the signed-in member
 let account = null; // their loans, reservations, fines and notices
 let offset = 0;
+let latest = 0; // the newest search; answers to older ones that arrive late are dropped
 
 /* ---------- views ---------- */
 const onShelf = () => location.hash === "#shelf";
@@ -45,7 +46,9 @@ async function search(append = false) {
   const params = new URLSearchParams([...new FormData(form)].filter(([, value]) => String(value).trim()));
   params.set("limit", PAGE);
   params.set("offset", offset);
+  const ticket = ++latest;
   const data = await api(`/api/books?${params}`);
+  if (ticket !== latest) return;
   const cards = data.items.map(bookCard).join("");
   if (append) $("#results").insertAdjacentHTML("beforeend", cards);
   else $("#results").innerHTML = cards || empty("Nothing on the shelves matches that. Try fewer words, another subject or any year.");
@@ -75,8 +78,8 @@ function markSubject(subject) {
 /* ---------- published: presets plus a typed range ---------- */
 function showYears() {
   const [from, to] = [form.elements.year_from.value, form.elements.year_to.value];
-  $("#published-label").textContent =
-    from && to ? `${from} – ${to}` : from ? `From ${from}` : to ? `Up to ${to}` : "Any year";
+  const [start, end] = [from, to].map((v) => yearText(Number(v)));
+  $("#published-label").textContent = from && to ? `${start} – ${end}` : from ? `From ${start}` : to ? `Up to ${end}` : "Any year";
   for (const option of $$("[data-years]")) {
     const [a, b] = option.dataset.years.split(":").map((v) => (v === "-" ? "" : v));
     option.setAttribute("aria-pressed", (a ?? "") === from && (b ?? "") === to);
@@ -102,11 +105,11 @@ async function openBook(id) {
   body.dataset.id = book.id;
   fill(body, `
     <div class="book-detail">
-      <div class="book-detail__cover">${coverImg(book, "L")}</div>
+      <div class="book-detail__cover">${coverImg(book)}</div>
       <div class="book-detail__head">
         ${tag(book.subject)}
         <h2 class="sheet__h" id="book-title">${esc(book.title)}</h2>
-        <p class="muted">${esc(book.author)}${book.year ? ` · ${book.year}` : ""}</p>
+        <p class="muted">${esc(book.author)}${book.year != null ? ` · ${yearText(book.year)}` : ""}</p>
       </div>
       <div class="book-detail__body">
         <p class="book-detail__desc">${esc(book.description || "No summary yet.")}</p>
@@ -411,7 +414,7 @@ document.addEventListener("click", (e) => {
     "beforeend",
     stats.subjects.map((s) => `<button type="button" class="chip" data-subject="${esc(s.name)}" aria-pressed="false">${esc(s.name)}</button>`).join("")
   );
-  $("#years-hint").textContent = `Type a range, like 1950 to 2000. Our books run from ${stats.years.min} to ${stats.years.max}.`;
+  $("#years-hint").textContent = `Type a range, like 1950 to 2000. Our books run from ${yearText(stats.years.min)} to ${yearText(stats.years.max)}; use a minus sign for BC.`;
   if (params.has("subject")) {
     markSubject(params.get("subject"));
     $('#subjects [aria-pressed="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });

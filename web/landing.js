@@ -3,7 +3,9 @@ const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ICONS = {
   "Fantasy": "ph-castle-turret", "Science Fiction": "ph-rocket-launch", "Mystery": "ph-detective", "Romance": "ph-heart-half",
   "Horror": "ph-skull", "Historical Fiction": "ph-scroll", "Poetry": "ph-feather", "Biography": "ph-identification-card",
-  "History": "ph-hourglass-medium", "Science": "ph-atom", "Philosophy": "ph-brain", "Programming": "ph-terminal-window",
+  "History": "ph-hourglass-medium", "Science": "ph-atom", "Philosophy": "ph-yin-yang", "Programming": "ph-terminal-window",
+  "Indian Fiction": "ph-flower-lotus", "Young Adult": "ph-backpack", "Graphic Novels": "ph-chat-teardrop-text",
+  "Psychology": "ph-brain", "Business": "ph-chart-line-up", "Self-Help": "ph-plant",
 };
 
 /* ---------- the glass bubbles drift with the pointer at three depths ---------- */
@@ -95,7 +97,7 @@ async function load() {
     .map((s, i) => `
       <a class="shelf-tile reveal" style="--i:${i}" href="/catalog?subject=${encodeURIComponent(s.name)}">
         <span class="shelf-tile__fan" aria-hidden="true">${s.covers
-          .map((id) => `<img src="${coverUrl(id)}" alt="" loading="lazy" onerror="this.remove()" />`)
+          .map((src) => `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()" />`)
           .join("")}</span>
         <span class="tile shelf-tile__face">
           <i class="ph ${ICONS[s.name] || "ph-books"} shelf-tile__icon" aria-hidden="true"></i>

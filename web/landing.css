@@ -675,10 +675,6 @@
     right: -10vw;
     width: 67vw;
   }
-
-  .shelves {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 
 /* below the text instead of behind it on narrow screens */

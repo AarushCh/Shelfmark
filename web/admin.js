@@ -122,7 +122,7 @@ const titleRow = (b) =>
   row({
     lead: thumb(b),
     title: bookLink(b),
-    sub: `${esc(b.author)} · ${esc(b.subject)} · ${b.year ?? "—"}`,
+    sub: `${esc(b.author)} · ${esc(b.subject)} · ${yearText(b.year)}`,
     side: (b.queue ? tag(`${b.queue} waiting`, "warn") : "") + tag(`${b.available} of ${b.copies} in`, b.available ? "ok" : "err"),
   });
 
@@ -182,12 +182,15 @@ function showError(box, err) {
   box.textContent = err.message;
 }
 
+// Each preview remembers what it was asked for, so a slow answer about a card or copy typed earlier is ignored.
 async function previewMember(card) {
   const box = $("#issue-member");
   box.className = "preview";
+  box.dataset.want = card;
   if (!card) return (box.innerHTML = "");
   try {
     const d = await api(`/api/admin/members/${encodeURIComponent(card)}`);
+    if (box.dataset.want !== card) return;
     const u = d.user;
     const out = d.loans.filter((l) => !l.returned_on);
     const late = out.filter((l) => l.days_overdue).length;
@@ -202,15 +205,17 @@ async function previewMember(card) {
       side: verdict,
     });
   } catch (err) {
-    showError(box, err);
+    if (box.dataset.want === card) showError(box, err);
   }
 }
 
 async function previewCopy(barcode, box) {
   box.className = "preview";
+  box.dataset.want = barcode;
   if (!barcode) return (box.innerHTML = "");
   try {
     const c = await api(`/api/admin/items/${encodeURIComponent(barcode)}`);
+    if (box.dataset.want !== barcode) return;
     const [label, tone] = COPY[c.status];
     let sub = `Rack ${esc(c.rack)}`;
     if (c.loan) sub += ` · with ${esc(c.loan.member.name)}, due ${shortDate(c.loan.due_on)}`;
@@ -218,7 +223,7 @@ async function previewCopy(barcode, box) {
     const late = c.loan?.days_overdue ? tag(`${c.loan.days_overdue}d late`, "err") : "";
     box.innerHTML = row({ lead: thumb(c.book), title: bookLink(c.book), sub, side: late + tag(label, tone) });
   } catch (err) {
-    showError(box, err);
+    if (box.dataset.want === barcode) showError(box, err);
   }
 }
 
@@ -243,7 +248,7 @@ issueForm.addEventListener("submit", (e) => {
     $("#issue-copy").innerHTML = "";
     previewMember(body.card_no);
     issueForm.barcode.focus();
-    loadCounter(false);
+    refreshAll();
   }, $("[type=submit]", issueForm));
 });
 
@@ -255,7 +260,7 @@ returnForm.addEventListener("submit", (e) => {
     returnForm.reset();
     $("#return-copy").innerHTML = "";
     returnForm.barcode.focus();
-    loadCounter(false);
+    refreshAll();
   }, $("[type=submit]", returnForm));
 });
 
@@ -346,7 +351,7 @@ async function openBook(id) {
       <div class="book-detail__head">
         ${tag(b.subject)}
         <h2 class="sheet__h" id="sheet-title">${esc(b.title)}</h2>
-        <p class="muted">${esc(b.author)} · ${b.year ?? "—"} · ISBN ${code(b.isbn)}</p>
+        <p class="muted">${esc(b.author)} · ${yearText(b.year)} · ISBN ${code(b.isbn)}</p>
         <p class="muted">${b.available} of ${b.copies} on the shelf${b.queue ? ` · ${b.queue} waiting` : ""}</p>
       </div>
     </div>
@@ -455,7 +460,7 @@ function addBook() {
       <label class="field">Copies<input class="input" name="copies" type="number" min="1" max="20" value="1" required /></label>
       <label class="field">Rack<input class="input input--code" name="rack" required maxlength="20" placeholder="PRG-05A" /></label>
       <label class="field wide">Summary<textarea class="input" name="description" rows="3" maxlength="4000"></textarea></label>
-      <input type="hidden" name="pages" /><input type="hidden" name="cover_id" />
+      <input type="hidden" name="pages" /><input type="hidden" name="cover" />
       <div class="wide"><button class="btn btn--lg">Add to catalogue</button></div>
     </form>`);
   const f = $("#book-form");
@@ -471,7 +476,7 @@ function addBook() {
       f.publisher.value = data.publishers?.[0]?.name || "";
       f.year.value = (data.publish_date || "").match(/\d{4}/)?.[0] || "";
       f.pages.value = data.number_of_pages || "";
-      f.cover_id.value = (data.cover?.medium || "").match(/\/id\/(\d+)/)?.[1] || "";
+      f.cover.value = data.cover?.medium?.replace(/^http:/, "https:") || "";
       f.subject.value ||= subjects.find((s) => data.subjects?.some((x) => x.name.toLowerCase().includes(s.toLowerCase()))) || "";
       toast(`Found “${f.title.value}”.`);
     }, e.currentTarget)
@@ -480,7 +485,8 @@ function addBook() {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(f));
     body.isbn = body.isbn.toUpperCase();
-    for (const k of ["year", "pages", "copies", "cover_id"]) body[k] = body[k] ? Number(body[k]) : null;
+    for (const k of ["year", "pages", "copies"]) body[k] = body[k] ? Number(body[k]) : null;
+    body.cover ||= null;
     attempt(async () => {
       const book = await api("/api/admin/books", { method: "POST", body });
       toast(`Catalogued “${book.title}” with ${book.copies} ${book.copies === 1 ? "copy" : "copies"}.`);

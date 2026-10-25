@@ -293,7 +293,8 @@ app/
   seed.py       demo data, replayed through the Library facade
   db.py         engine and session setup
 web/            landing (index), catalog and admin pages on one shared theme.css and shared.js
-data/books.json 146 curated titles enriched from Open Library
+data/books.json 365 curated titles, details from Open Library
+web/covers/     their front covers, one JPEG per ISBN
 scripts/        dataset builder
 tests/          unit tests for every business rule
 ```
@@ -301,7 +302,7 @@ tests/          unit tests for every business rule
 - **Backend:** Python 3.13, FastAPI, SQLAlchemy 2, psycopg 3
 - **Auth:** scrypt-hashed passwords; members and staff sign in at separate endpoints into separate slots of one signed session cookie (`HttpOnly`, `SameSite=Lax`, `Secure` in production); role guards on every endpoint
 - **Frontend:** plain HTML/CSS/JS with no build step: one theme for every page, CSS animations and page transitions, plus JsBarcode and Phosphor icons from CDNs
-- **Data:** demo seed with 146 books, 311 copies, 39 accounts and six weeks of simulated circulation. The simulation runs through the same `Library` class the API uses, so every loan, fine, hold and notice obeys the real rules.
+- **Data:** demo seed with 365 books on 18 subject shelves, 777 copies, 63 accounts and two months of simulated circulation. The simulation runs through the same `Library` class the API uses, so every loan, fine, hold and notice obeys the real rules.
 
 ## Run it locally
 
@@ -335,9 +336,9 @@ One web service on Render's free plan and one free Neon Postgres database. Nothi
 
 ## Dataset
 
-[`scripts/fetch_books.py`](scripts/fetch_books.py) builds `data/books.json` from a curated list of 146 well-known titles across 12 subjects. Each title is enriched through the [Open Library API](https://openlibrary.org/developers/api) (CC0) with its ISBN, cover, publisher, page count and description.
+[`scripts/fetch_books.py`](scripts/fetch_books.py) builds `data/books.json` from a curated list of 365 well-known titles across 18 subjects. Each title is enriched through the [Open Library API](https://openlibrary.org/developers/api) (CC0) with its ISBN, publisher, page count and description, and its front cover is saved from Google Books into `web/covers/`, so the site never depends on another server for images. Re-running it only fetches titles that are new or changed.
 
 ## Credits
 
 - Interface adapted from CodePen pens (MIT) and unified into one theme: the hero is **[SVG] [CSS] Marquee Glass Bubble** by [Fernando Cohen](https://codepen.io/designfenix); the paper palette, dark tiles and pale platform come from **3D Data cards menu** by Deckard; the stat tiles, segmented filters, switches and sheets follow the **Bento element lab** by Mohammad Abu Sakour; the striped attention strip is from **HYPER LINK, a sandbox concept** by Pharaoh Leap.
-- Book data and covers: [Open Library](https://openlibrary.org). Photography: [Unsplash](https://unsplash.com). Icons: [Phosphor](https://phosphoricons.com). Barcodes: [JsBarcode](https://github.com/lindell/JsBarcode).
+- Book data: [Open Library](https://openlibrary.org). Covers: [Google Books](https://books.google.com). Photography: [Unsplash](https://unsplash.com). Icons: [Phosphor](https://phosphoricons.com). Barcodes: [JsBarcode](https://github.com/lindell/JsBarcode).

@@ -22,7 +22,8 @@ async function api(path, { method = "GET", body } = {}) {
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const coverUrl = (id, size = "M") => (id ? `https://covers.openlibrary.org/b/id/${id}-${size}.jpg` : "");
+// Years before the common era are stored as negative numbers.
+const yearText = (year) => (year == null ? "—" : year < 0 ? `${-year} BC` : String(year));
 
 const shortDate = (iso) =>
   iso ? new Date(iso.length === 10 ? iso + "T00:00" : iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—";
@@ -46,20 +47,14 @@ const initials = (name) =>
 const tag = (text, tone = "") => `<span class="tag${tone ? " tag--" + tone : ""}">${esc(text)}</span>`;
 const avatar = (name, size = "") => `<span class="avatar${size ? " avatar--" + size : ""}" aria-hidden="true">${esc(initials(name))}</span>`;
 const thumb = (book) =>
-  `<span class="thumb" style="--hue:${hue(book.title)}${book.cover_id ? `;--cover:url('${coverUrl(book.cover_id, "S")}')` : ""}"></span>`;
+  `<span class="thumb" style="--hue:${hue(book.title)}${book.cover ? `;--cover:url('${esc(book.cover)}')` : ""}"></span>`;
 const empty = (text) => `<p class="empty">${text}</p>`;
-// Under every cover image sits a plain jacket in a colour picked from the title, so a cover that is slow or
-// missing still looks like a book instead of a broken image.
+// Under every cover image sits a plain jacket in a colour picked from the title, so a book without a cover
+// (or one whose image fails to load) still looks like a book instead of a broken image.
 const hue = (text) => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-const coverImg = (book, size = "M") =>
+const coverImg = (book) =>
   `<span class="book__blank" style="--hue:${hue(book.title)}"><b>${esc(book.title)}</b><small>${esc(book.author || "")}</small></span>` +
-  (book.cover_id ? `<img src="${coverUrl(book.cover_id, size)}" alt="" loading="lazy" onerror="coverFailed(this)" />` : "");
-
-// Open Library serves covers through archive.org, which now and then answers 502: try once more before giving up.
-function coverFailed(img) {
-  if (img.src.endsWith("?default=false")) return img.remove();
-  img.src += "?default=false";
-}
+  (book.cover ? `<img src="${esc(book.cover)}" alt="" loading="lazy" onerror="this.remove()" />` : "");
 
 const row = ({ lead = "", title, sub = "", side = "" }) => `
   <div class="row">${lead}
@@ -155,8 +150,9 @@ async function morph(update) {
   await transition.updateCallbackDone;
 }
 
-// The same goes for the cross-fade between pages, which the browser drops on a reload.
-addEventListener("pagereveal", (e) => e.viewTransition?.ready.catch(() => null));
+// The same goes for the cross-fade between pages when the page being left drops it (each page's <head> covers
+// the page arriving).
+addEventListener("pageswap", (e) => e.viewTransition?.ready.catch(() => null));
 
 /* ---------- page chrome ---------- */
 // The top bar picks up a backdrop once the page scrolls under it.
