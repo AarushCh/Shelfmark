@@ -5,7 +5,10 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
 def database_url() -> str:
-    url = os.environ.get("DATABASE_URL", "sqlite:///shelfmark.db")
+    # Render wipes its disk on every deploy, so a SQLite file there would lose every account and loan.
+    url = os.environ.get("DATABASE_URL") or ("" if "RENDER" in os.environ else "sqlite:///shelfmark.db")
+    if not url:
+        raise RuntimeError("DATABASE_URL must be set in production")
     # Neon hands out postgres:// / postgresql:// URLs; SQLAlchemy needs the psycopg 3 driver named.
     for prefix in ("postgres://", "postgresql://"):
         if url.startswith(prefix):
