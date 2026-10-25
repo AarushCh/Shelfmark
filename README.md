@@ -331,7 +331,7 @@ python -m unittest        # 17 tests covering the case-study rules
 One web service on Render's free plan and one free Neon Postgres database. Nothing else to set up.
 
 1. On [Neon](https://neon.tech), create a project and copy its **pooled** connection string.
-2. Click [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)]({{DEPLOY_URL}}) and paste that string as `DATABASE_URL`. Render generates `SECRET_KEY` itself.
+2. Click [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/AarushCh/shelfmark) and paste that string as `DATABASE_URL`. Render generates `SECRET_KEY` itself.
 3. The first boot creates the tables and seeds the demo library.
 
 ## Dataset
