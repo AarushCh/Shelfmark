@@ -49,6 +49,7 @@ body {
   color: var(--ink);
   font: 15px/1.5 var(--sans);
   -webkit-font-smoothing: antialiased;
+  caret-color: transparent; /* with caret browsing on (F7), clicked text and buttons would get a blinking caret */
 }
 
 a {
@@ -62,6 +63,11 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+}
+
+input,
+textarea {
+  caret-color: auto; /* fields still show where you're typing */
 }
 
 button {
